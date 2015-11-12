@@ -129,6 +129,14 @@ namespace Predicate
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings) {
+            if (options != ComparisonPredicateModifier.Direct)
+            {
+                // TODO: Rewrite the predicate as a subquery and return generate a LinqExpression on that instead.
+                // ANY toMany.x = 'foo' => SUBQUERY(toMany, $x, $x = 'foo').@count > 0
+                // ALL toMany.x = 'foo' => SUBQUERY(toMany, $x, $x = 'foo').@count = toMany.@count
+                throw new NotImplementedException();
+            }
+
             Expression left = leftExpression.LinqExpression(bindings);
             Expression right = rightExpression.LinqExpression(bindings);
 
