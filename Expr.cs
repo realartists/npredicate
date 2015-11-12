@@ -342,6 +342,9 @@ namespace Predicate
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
+            // Generate code for
+            // collection.Where(variable => predicate)
+
             var collectionExpression = collection.LinqExpression(bindings);
             Type itemType = null;
             if (collectionExpression.Type.IsSubclassOf(typeof(Array))) 
