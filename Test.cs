@@ -91,7 +91,7 @@ namespace Predicate
 			var a = Expr.MakeEvaluatedObject();
 			var b = Expr.MakeConstant(1);
 
-			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.LessThan, b);
+			var p = ComparisonPredicate.LessThan(a, b);
 
 			Assert.IsTrue(p.EvaluateObject(0));
 			Assert.IsFalse(p.EvaluateObject(1));
@@ -104,7 +104,7 @@ namespace Predicate
 			var a = Expr.MakeEvaluatedObject();
 			var b = Expr.MakeConstant("Hello World");
 
-			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.EqualTo, b);
+			var p = ComparisonPredicate.EqualTo(a, b);
 			Assert.IsTrue(p.EvaluateObject("Hello World"));
 			Assert.IsFalse(p.EvaluateObject("Goodbye Cruel World"));
 		}
@@ -116,7 +116,7 @@ namespace Predicate
 			var a = Expr.MakeEvaluatedObject();
 			var b = Expr.MakeConstant("Hello World");
 
-			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.EqualTo, b, ComparisonPredicateModifier.Direct, ComparisonPredicateOptions.CaseInsensitive);
+            var p = ComparisonPredicate.EqualTo(a, b, ComparisonPredicateModifier.Direct, ComparisonPredicateOptions.CaseInsensitive);
 			Assert.IsTrue(p.EvaluateObject("hello world"));
 		}
 
@@ -127,7 +127,7 @@ namespace Predicate
 			var a = Expr.MakeEvaluatedObject();
 			var b = Expr.MakeConstant("^[0-9a-fA-F]+$");
 
-			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.Matches, b);
+			var p = ComparisonPredicate.Matches(a, b);
 			Assert.IsTrue(p.EvaluateObject("F00DFACE"));
 			Assert.IsFalse(p.EvaluateObject("Hello World"));
 		}
@@ -139,7 +139,7 @@ namespace Predicate
 			var a = Expr.MakeEvaluatedObject();
 			var b = Expr.MakeConstant(new List<int>(new int[] { 1, 2, 3, 4 }));
 
-			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.In, b);
+			var p = ComparisonPredicate.In(a, b);
 			Assert.IsTrue(p.EvaluateObject(1));
 			Assert.IsFalse(p.EvaluateObject(0));
 		}
@@ -151,7 +151,7 @@ namespace Predicate
 			var a = Expr.MakeEvaluatedObject();
 			var b = Expr.MakeConstant(new List<int>(new int[] { 1, 4 }));
 
-			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.Between, b);
+			var p = ComparisonPredicate.Between(a, b);
 			Assert.IsTrue(p.EvaluateObject(2));
 			Assert.IsFalse(p.EvaluateObject(0));
 		}
@@ -162,7 +162,7 @@ namespace Predicate
 			// SUBQUERY(keywords, $k, $k BEGINSWITH 'hello').@count
 			var k = Expr.MakeVariable("$k");
 			var prefix = Expr.MakeConstant("hello");
-			var subpred = ComparisonPredicate.Comparison(k, PredicateOperatorType.BeginsWith, prefix);
+            var subpred = ComparisonPredicate.BeginsWith(k, prefix);
 
 			var haystack = Expr.MakeKeyPath("keywords");
 			var subquery = Expr.MakeSubquery(haystack, "$k", subpred);
@@ -185,11 +185,52 @@ namespace Predicate
 
 			var agg = Expr.MakeAggregate(new Expr[] { zero, one });
 
-			var p = ComparisonPredicate.Comparison(Expr.MakeEvaluatedObject(), PredicateOperatorType.In, agg);
+			var p = ComparisonPredicate.In(Expr.MakeEvaluatedObject(), agg);
 
 			Assert.IsTrue(p.EvaluateObject(0));
 			Assert.IsTrue(p.EvaluateObject(1));
 			Assert.IsFalse(p.EvaluateObject(2));
+		}
+
+		[Test()]
+		public void TestSum()
+		{
+			var l = Expr.MakeAggregate(new Expr[] { Expr.MakeConstant(1), Expr.MakeConstant(2), Expr.MakeConstant(3), });
+			var sum = Expr.MakeFunction("sum:", new Expr[] { l });
+
+			Assert.AreEqual(6, sum.LinqExpression<int, int>().Compile()(0));
+		}
+
+		[Test()]
+		public void TestArithmetic()
+		{
+			var self = Expr.MakeEvaluatedObject();
+			var two = Expr.MakeConstant(2);
+
+			var add = Expr.MakeFunction("add:to:", self, two);
+			var sub = Expr.MakeFunction("from:subtract:", self, two);
+			var abs = Expr.MakeFunction("abs:", self);
+			var rand = Expr.MakeFunction("random");
+
+			Assert.AreEqual(4, add.ValueWithObject<int, int>(2));
+			Assert.AreEqual(0, sub.ValueWithObject<int, int>(2));
+			Assert.AreEqual(2, abs.ValueWithObject<int, int>(-2));
+           
+			int i = rand.ValueWithObject<int, int>(0);
+            int j = rand.ValueWithObject<int, int>(0);
+
+            Assert.True(i != j);
+		}
+
+		[Test()]
+		public void TestStringFns() {
+			var self = Expr.MakeEvaluatedObject();
+
+			var lower = Expr.MakeFunction("lowercase:", self);
+			var upper = Expr.MakeFunction("uppercase:", self);
+
+			Assert.AreEqual("hello", lower.ValueWithObject<string, string>("Hello"));
+			Assert.AreEqual("HELLO", upper.ValueWithObject<string, string>("Hello"));
 		}
 	}
 }

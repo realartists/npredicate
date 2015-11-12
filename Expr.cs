@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Diagnostics;
 
 namespace Predicate
 {
@@ -112,6 +113,10 @@ namespace Predicate
         }
 
         public static Expr MakeFunction(string name, IEnumerable<Expr> arguments) {
+            return new FunctionExpr(name, arguments);
+        }
+
+        public static Expr MakeFunction(string name, params Expr[] arguments) {
             return new FunctionExpr(name, arguments);
         }
 
@@ -304,10 +309,147 @@ namespace Predicate
             this.Function = function;
             this.Arguments = arguments;
         }
+            
+        // Expression that invokes one of the predefined functions. Will throw immediately if the selector is bad; will throw at runtime if the parameters are incorrect.
+        // Predefined functions are:
+        // name              parameter array contents               returns
+        //-------------------------------------------------------------------------------------------------------------------------------------
+        // sum:              NSExpression instances representing numbers        NSNumber 
+        // count:            NSExpression instances representing numbers        NSNumber 
+        // min:              NSExpression instances representing numbers        NSNumber  
+        // max:              NSExpression instances representing numbers        NSNumber
+        // average:          NSExpression instances representing numbers        NSNumber
+        // median:           NSExpression instances representing numbers        NSNumber
+        // mode:             NSExpression instances representing numbers        NSArray     (returned array will contain all occurrences of the mode)
+        // stddev:           NSExpression instances representing numbers        NSNumber
+        // add:to:           NSExpression instances representing numbers        NSNumber
+        // from:subtract:    two NSExpression instances representing numbers    NSNumber
+        // multiply:by:      two NSExpression instances representing numbers    NSNumber
+        // divide:by:        two NSExpression instances representing numbers    NSNumber
+        // modulus:by:       two NSExpression instances representing numbers    NSNumber
+        // sqrt:             one NSExpression instance representing numbers     NSNumber
+        // log:              one NSExpression instance representing a number    NSNumber
+        // ln:               one NSExpression instance representing a number    NSNumber
+        // raise:toPower:    one NSExpression instance representing a number    NSNumber
+        // exp:              one NSExpression instance representing a number    NSNumber
+        // floor:            one NSExpression instance representing a number    NSNumber
+        // ceiling:          one NSExpression instance representing a number    NSNumber
+        // abs:              one NSExpression instance representing a number    NSNumber
+        // trunc:            one NSExpression instance representing a number    NSNumber
+        // uppercase:    one NSExpression instance representing a string    NSString
+        // lowercase:    one NSExpression instance representing a string    NSString
+        // random            none                           NSNumber (integer) 
+        // randomn:          one NSExpression instance representing a number    NSNumber (integer) such that 0 <= rand < param
+        // now               none                           [NSDate now]
+        // bitwiseAnd:with:  two NSExpression instances representing numbers    NSNumber    (numbers will be treated as NSInteger)
+        // bitwiseOr:with:   two NSExpression instances representing numbers    NSNumber    (numbers will be treated as NSInteger)
+        // bitwiseXor:with:  two NSExpression instances representing numbers    NSNumber    (numbers will be treated as NSInteger)
+        // leftshift:by:     two NSExpression instances representing numbers    NSNumber    (numbers will be treated as NSInteger)
+        // rightshift:by:    two NSExpression instances representing numbers    NSNumber    (numbers will be treated as NSInteger)
+        // onesComplement:   one NSExpression instance representing a numbers   NSNumber    (numbers will be treated as NSInteger)
+        // noindex:      an NSExpression                    parameter   (used by CoreData to indicate that an index should be dropped)
+        // distanceToLocation:fromLocation:
+        //                   two NSExpression instances representing CLLocations    NSNumber
+        // length:           an NSExpression instance representing a string         NSNumber
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            throw new NotImplementedException();
+            var argumentExpressions = Arguments.Select(a => a.LinqExpression(bindings));
+            var arg0 = argumentExpressions.FirstOrDefault();
+            var arg1 = argumentExpressions.ElementAtOrDefault(1);
+
+            switch (Function) {
+                case "sum:":
+                    return CallAggregate("Sum", arg0);
+                case "count:":
+                    return CallAggregate("Count", arg0);
+                case "min:":
+                    return CallAggregate("Min", arg0);
+                case "max:":
+                    return CallAggregate("Max", arg0);
+                case "average:":
+                    return CallAggregate("Average", arg0);
+                case "median:":
+                    break; // TODO
+                case "mode:":
+                    break; // TODO
+                case "stddev:":
+                    break; // TODO
+                case "add:to:":
+                    return Expression.Add(arg0, arg1);
+                case "from:subtract:":
+                    return Expression.Subtract(arg0, arg1);
+                case "multiply:by:":
+                    return Expression.Multiply(arg0, arg1);
+                case "divide:by:":
+                    return Expression.Divide(arg0, arg1);
+                case "modulus:by:":
+                    return Expression.Modulo(arg0, arg1);
+                case "sqrt:":
+                    return CallMath("Sqrt", arg0);
+                case "log:":
+                    return CallMath("Log10", arg0);
+                case "ln:":
+                    return CallMath("Log", arg0);
+                case "raise:toPower:":
+                    return Expression.Power(arg0, arg1);
+                case "exp:":
+                    return Expression.Power(Expression.Constant(Math.E), arg0);
+                case "floor:":
+                    return CallMath("Floor", arg0);
+                case "ceiling":
+                    return CallMath("Ceiling", arg0);
+                case "abs:":
+                    return CallMath("Abs", arg0);
+                case "trunc:":
+                    return CallMath("Truncate", arg0);
+                case "uppercase:":
+                    return Utils.CallSafe(arg0, "ToUpper");
+                case "lowercase:":
+                    return Utils.CallSafe(arg0, "ToLower");
+                case "random": {
+                    var randExpr = Expression.Constant(Rand);
+                    var randInt = typeof(Random).GetMethod("Next", new Type[] { });
+                    return Expression.Call(randExpr, randInt);
+                }
+                case "randomn:": {
+                    var randExpr = Expression.Constant(Rand);
+                    var randN = typeof(Random).GetMethod("Next", new Type[] { typeof(int) });
+                    return Expression.Call(randExpr, randN, arg0);
+                }
+                case "now": {
+                    var utcNow = typeof(DateTime).GetProperty("UtcNow", BindingFlags.Static);
+                    return Expression.Property(null, utcNow);
+                }
+                case "bitwiseAnd:with:":
+                    return Expression.And(arg0, arg1);
+                case "bitwiseOr:with:":
+                    return Expression.Or(arg0, arg1);
+                case "bitwiseXor:with:":
+                    return Expression.ExclusiveOr(arg0, arg1);
+                case "leftshift:by:":
+                    return Expression.LeftShift(arg0, arg1);
+                case "rightshift:by:":
+                    return Expression.RightShift(arg0, arg1);
+                case "onesComplement:":
+                    return Expression.OnesComplement(arg0);
+                case "length:":
+                    return Utils.CallSafe(arg0, "Length");
+            }
+            throw new NotImplementedException($"${Function} not implemented");
+        }
+
+        static Random Rand = new Random();
+
+        private Expression CallAggregate(string aggregate, Expression arg) {
+            var aggregateMethod = typeof(System.Linq.Enumerable).GetMethod(aggregate, new Type[] { arg.Type });
+            Debug.Assert(aggregateMethod != null && !aggregateMethod.ContainsGenericParameters);
+            return Expression.Call(aggregateMethod, arg);
+        }
+
+        private Expression CallMath(string fn, params Expression[] args) {
+            var mathMethod = typeof(System.Math).GetMethod(fn, args.Select(x => x.Type).ToArray());
+            return Expression.Call(mathMethod, args);
         }
 
         public override string Format
@@ -317,6 +459,7 @@ namespace Predicate
             }
         }
     }
+
 
     class SetExpr : Expr {
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)

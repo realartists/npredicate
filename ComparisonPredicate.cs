@@ -40,10 +40,7 @@ namespace Predicate
     {
         protected ComparisonPredicate() { }
 
-        public static ComparisonPredicate Comparison(Expr left, PredicateOperatorType op, Expr right) {
-            return Comparison(left, op, right, ComparisonPredicateModifier.Direct, 0);
-        }
-        public static ComparisonPredicate Comparison(Expr left, PredicateOperatorType op, Expr right, ComparisonPredicateModifier modifier, ComparisonPredicateOptions options) {
+        public static ComparisonPredicate Comparison(Expr left, PredicateOperatorType op, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
             ComparisonPredicate p = new ComparisonPredicate();
             p.LeftExpression = left;
             p.PredicateOperatorType = op;
@@ -51,6 +48,58 @@ namespace Predicate
             p.ComparisonPredicateModifier = modifier;
             p.Options = options;
             return p;
+        }
+
+        public static ComparisonPredicate LessThan(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.LessThan, right, modifier, options);
+        }
+
+        public static ComparisonPredicate LessThanOrEqualTo(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.LessThanOrEqualTo, right, modifier, options);
+        }
+
+        public static ComparisonPredicate GreaterThan(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.GreaterThan, right, modifier, options);
+        }
+
+        public static ComparisonPredicate GreaterThanOrEqualTo(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.GreaterThanOrEqualTo, right, modifier, options);
+        }
+
+        public static ComparisonPredicate EqualTo(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.EqualTo, right, modifier, options);
+        }
+
+        public static ComparisonPredicate NotEqualTo(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.NotEqualTo, right, modifier, options);
+        }
+
+        public static ComparisonPredicate Matches(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.Matches, right, modifier, options);
+        }
+
+        public static ComparisonPredicate Like(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.Like, right, modifier, options);
+        }
+
+        public static ComparisonPredicate BeginsWith(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.BeginsWith, right, modifier, options);
+        }
+
+        public static ComparisonPredicate EndsWith(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.EndsWith, right, modifier, options);
+        }
+
+        public static ComparisonPredicate In(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.In, right, modifier, options);
+        }
+
+        public static ComparisonPredicate Contains(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.Contains, right, modifier, options);
+        }
+
+        public static ComparisonPredicate Between(Expr left, Expr right, ComparisonPredicateModifier modifier = ComparisonPredicateModifier.Direct, ComparisonPredicateOptions options = 0) {
+            return Comparison(left, PredicateOperatorType.Between, right, modifier, options);
         }
 
         public PredicateOperatorType PredicateOperatorType { get; private set; }
@@ -166,6 +215,8 @@ namespace Predicate
                 case PredicateOperatorType.Matches:
                     var method = typeof(Utils).GetMethod("_Predicate_MatchesRegex", BindingFlags.Public | BindingFlags.Static);
                     return Expression.Call(method, left, right);
+                case PredicateOperatorType.Like:
+                    throw new NotImplementedException();
                 case PredicateOperatorType.BeginsWith:
                     return Utils.CallSafe(left, "StartsWith", right);
                 case PredicateOperatorType.EndsWith:
@@ -189,23 +240,6 @@ namespace Predicate
                     return Expression.AndAlso(Expression.GreaterThanOrEqual(left, lower), Expression.LessThanOrEqual(left, upper));
             }
             return null;
-        }
-
-        static class Utils {
-            public static bool _Predicate_MatchesRegex(string s, string regex) {
-                Regex r = new Regex(regex);
-                return r.IsMatch(s);
-            }
-                            
-
-            public static Expression CallSafe(Expression target, string methodName, params Expression[] arguments) {
-                var defaultTarget = Expression.Default(target.Type);
-                var isNull = Expression.ReferenceEqual(target, defaultTarget);
-                var argTypes = arguments.Select(a => a.Type).ToArray();
-                var called = Expression.Call(target, target.Type.GetMethod(methodName, argTypes), arguments);
-                var defaultCalled = Expression.Default(called.Type);
-                return Expression.Condition(isNull, defaultCalled, called);
-            }
         }
     }
 
