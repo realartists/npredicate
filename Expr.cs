@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Predicate
 {
@@ -49,13 +51,19 @@ namespace Predicate
             protected set;
         }
 
+        public Expr operand
+        {
+            get;
+            protected set;
+        }
+
         public IEnumerable<Expr> arguments
         {
             get;
             protected set;
         }
 
-        public dynamic collection
+        public Expr collection
         {
             get;
             protected set;
@@ -91,13 +99,16 @@ namespace Predicate
             return new EvaluatedObjectExpr();
         }
 
-        // Pulls from the variable bindings dictionary
         public static Expr Variable(string variable) {
             return new VariableExpr(variable);
         }
 
         public static Expr KeyPath(string keyPath) {
             return new KeyPathExpr(keyPath);
+        }
+
+        public static Expr KeyPath(Expr operand, string keyPath) {
+            return new KeyPathExpr(operand, keyPath);
         }
 
         public static Expr Function(string name, IEnumerable<Expr> arguments) {
@@ -120,24 +131,40 @@ namespace Predicate
             return new SetExpr();
         }
             
-        public static Expr Subquery(Expr expr, string iterator, Predicate predicate) {
-            return new SubqueryExpr();
+        public static Expr Subquery(Expr expr, string variable, Predicate predicate) {
+            return new SubqueryExpr(expr, variable, predicate);
         }
 
-        public Expression<Func<T, dynamic>> LinqExpression<T>() {
+        public Expression<Func<T, V>> LinqExpression<T, V>() {
+            var bindings = new Dictionary<string, ParameterExpression>();
             ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
-            return Expression.Lambda<Func<T, dynamic>>(LinqExpression(self), self);
+            bindings.Add(self.Name, self);
+            return Expression.Lambda<Func<T, V>>(LinqExpression(bindings), self);
         }
 
         public V ValueWithObject<T,V>(T obj) {
-            var expr = LinqExpression<T>();
+            var expr = LinqExpression<T, V>();
             Func<T, V> func = expr.Compile();
             return func(obj);
         }
 
-        protected abstract Expression LinqExpression(ParameterExpression self);
+        public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings);
+
+        public abstract string Format { get; }
 
         protected Expr() { }
+
+        private static readonly Func<MethodInfo, IEnumerable<Type>> ParameterTypeProjection = 
+            method => method.GetParameters()
+                .Select(p => p.ParameterType.GetGenericTypeDefinition());
+
+        protected static MethodInfo GetGenericMethod(Type type, string name, params Type[] parameterTypes)
+        {
+            return (from method in type.GetMethods()
+                where method.Name == name
+                where parameterTypes.SequenceEqual(ParameterTypeProjection(method))
+                select method).SingleOrDefault();
+        }
     }
 
     class ConstantExpr : Expr {
@@ -146,9 +173,16 @@ namespace Predicate
             constantValue = value;
         }
 
-        protected override Expression LinqExpression(ParameterExpression self)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
             return Expression.Constant(constantValue);
+        }
+
+        public override string Format
+        {
+            get {
+                return constantValue?.ToString() ?? "null";
+            }
         }
     }
 
@@ -157,9 +191,16 @@ namespace Predicate
             expressionType = ExpressionType.EvaluatedObjectExpressionType;
         }
 
-        protected override Expression LinqExpression(ParameterExpression self)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            return self;
+            return bindings["SELF"];
+        }
+
+        public override string Format
+        {
+            get {
+                return "SELF";
+            }
         }
     }
 
@@ -169,28 +210,73 @@ namespace Predicate
             this.variable = variable;
         }
 
-        protected override Expression LinqExpression(ParameterExpression self)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            throw new NotImplementedException();
+            return bindings[variable];
+        }
+
+        public override string Format
+        {
+            get {
+                return variable;
+            }
         }
     }
 
     class KeyPathExpr : Expr {
+
         public KeyPathExpr(string keyPath) {
             this.expressionType = ExpressionType.KeyPathExpressionType;
             this.keyPath = keyPath;
         }
 
-        protected override Expression LinqExpression(ParameterExpression self)
+        public KeyPathExpr(Expr operand, string keyPath) {
+            this.expressionType = ExpressionType.KeyPathExpressionType;
+            this.operand = operand;
+            this.keyPath = keyPath;
+        }
+
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
             string[] keys = keyPath.Split('.');
-            Expression result = self;
+            Expression result = operand != null ? operand.LinqExpression(bindings) : bindings["SELF"];
             foreach (string key in keys) {
                 if (key.ToLower() == "self") {
                     continue;
                 }
 
-                var propertyExpr = Expression.Property(result, key);
+                Expression propertyExpr = null;
+
+                // Keypath evaluations in Cocoa are always safe.
+                // That is, if any point along the list is nil,
+                // The whole thing collapses down to nil.
+
+                // This is the equivalent in C# of writing
+                // a?.b?.c?.d
+
+                if (key == "@count") // Special case @count, which is actually a method, not a property (Length is a property, but it isn't available on IEnumerable, which is what we probably have)
+                {
+                    Type itemType;
+                    if (result.Type.IsSubclassOf(typeof(Array))) 
+                    {
+                        itemType = Expression.ArrayIndex(result, Expression.Constant(0)).Type;
+                    }
+                    else
+                    {
+                        itemType = result.Type.GetGenericArguments()[0];
+                    }
+
+                    Type arg0OpenType = typeof(IEnumerable<>);
+
+                    var countOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), "Count", new Type[] { arg0OpenType });
+                    var countMethod = countOpenMethod.MakeGenericMethod(new Type[] { itemType });
+
+                    propertyExpr = Expression.Call(null, countMethod, result);
+                }
+                else
+                {
+                    propertyExpr = Expression.Property(result, key);
+                }
 
                 var defaultSource = Expression.Default(result.Type);
                 var defaultResult = Expression.Default(propertyExpr.Type);
@@ -203,6 +289,13 @@ namespace Predicate
 
             return result;
         }
+
+        public override string Format
+        {
+            get {
+                return keyPath;
+            }
+        }
     }
 
     class FunctionExpr : Expr {
@@ -212,30 +305,93 @@ namespace Predicate
             this.arguments = arguments;
         }
 
-        protected override Expression LinqExpression(ParameterExpression self)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
             throw new NotImplementedException();
+        }
+
+        public override string Format
+        {
+            get {
+                throw new NotImplementedException();
+            }
         }
     }
 
     class SetExpr : Expr {
-        protected override Expression LinqExpression(ParameterExpression self)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
             throw new NotImplementedException();
+        }
+
+        public override string Format
+        {
+            get {
+                throw new NotImplementedException();
+            }
         }
     }
 
     class SubqueryExpr : Expr {
-        protected override Expression LinqExpression(ParameterExpression self)
+        public SubqueryExpr(Expr collection, string variableName, Predicate predicate) {
+            this.expressionType = ExpressionType.SubqueryExpressionType;
+            this.collection = collection;
+            this.variable = variableName;
+            this.predicate = predicate;
+        }
+
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            throw new NotImplementedException();
+            var collectionExpression = collection.LinqExpression(bindings);
+            Type itemType = null;
+            if (collectionExpression.Type.IsSubclassOf(typeof(Array))) 
+            {
+                itemType = Expression.ArrayIndex(collectionExpression, Expression.Constant(0)).Type;
+            }
+            else
+            {
+                itemType = collectionExpression.Type.GetGenericArguments()[0];
+            }
+                
+            ParameterExpression varExpr = Expression.Parameter(itemType, variable);
+            var subBindings = new Dictionary<string, ParameterExpression>(bindings);
+            subBindings[variable] = varExpr;
+            var p = predicate.LinqExpression(subBindings);
+
+            Type arg0OpenType = typeof(IEnumerable<>);
+            //Type arg0Type = arg0OpenType.MakeGenericType(new Type[] { itemType });
+
+            Type arg1OpenType = typeof(Func<,>);
+            Type arg1Type = arg1OpenType.MakeGenericType(new Type[] { itemType, typeof(Boolean) });
+
+            var whereOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), "Where", new Type[] { arg0OpenType, arg1OpenType });
+            var whereMethod = whereOpenMethod.MakeGenericMethod(new Type[] { itemType });
+
+            var lambda = Expression.Lambda(arg1Type, p, new ParameterExpression[] { varExpr });
+            var whereExpression = Expression.Call(null, whereMethod, collectionExpression, lambda);
+
+            return whereExpression;
+        }
+
+        public override string Format
+        {
+            get {
+                return $"SUBQUERY(${collection.Format}, ${variable}, ${predicate}";
+            }
         }
     }
 
     class AggregateExpr : Expr {
-        protected override Expression LinqExpression(ParameterExpression self)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
             throw new NotImplementedException();
+        }
+
+        public override string Format
+        {
+            get {
+                throw new NotImplementedException();
+            }
         }
     }
 

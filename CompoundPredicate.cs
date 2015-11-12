@@ -48,93 +48,61 @@ namespace Predicate
 			return p;
 		}
 
-		#if false
-		public override bool EvaluateObject(dynamic obj) {
-			switch (compoundPredicateType) {
-			case CompoundPredicateType.And:
-				{
-					foreach (Predicate p in subpredicates) {
-						if (!(p.EvaluateObject (obj))) {
-							return false;
-						}
-					}
-					return true;
-				}
-			case CompoundPredicateType.Or:
-				{
-					foreach (Predicate p in subpredicates) {
-						if (p.EvaluateObject (obj)) {
-							return true;
-						}
-					}
-					return false;
-				}
-			case CompoundPredicateType.Not:
-				{
-					Predicate p = subpredicates.First();
-					return !p.EvaluateObject (obj);
-				}
-			}
-
-			return false;
-		}
-		#endif
-
 		public override string Format {
 			get {
 				switch (compoundPredicateType) {
-				case CompoundPredicateType.And:
-					return String.Join(" AND ", subpredicates);
-				case CompoundPredicateType.Or:
-					return String.Join(" OR ", subpredicates);
-				case CompoundPredicateType.Not:
-					return "NOT (${subpredicates.First().Format})";
+                    case CompoundPredicateType.And:
+                        return "(" + String.Join(" AND ", subpredicates) + ")";
+                    case CompoundPredicateType.Or:
+                        return "(" + String.Join(" OR ", subpredicates) + ")";
+				    case CompoundPredicateType.Not:
+					    return "NOT (${subpredicates.First().Format})";
 				}
 				return "";
 			}
 		}
 
-		private Expression GenerateAnd(ParameterExpression self, IEnumerable<Predicate> predicates) {
+        private Expression GenerateAnd(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates) {
 			if (predicates.Count() > 2) {
-				Expression a = predicates.First().LinqExpression(self);
-				Expression b = GenerateAnd(self, predicates.Skip(1));
+                Expression a = predicates.First().LinqExpression(bindings);
+                Expression b = GenerateAnd(bindings, predicates.Skip(1));
 				return Expression.AndAlso (a, b);
 			} else if (predicates.Count() == 2) {
-				Expression a = predicates.First().LinqExpression(self);
-				Expression b = predicates.Last().LinqExpression(self);
+                Expression a = predicates.First().LinqExpression(bindings);
+                Expression b = predicates.Last().LinqExpression(bindings);
 				return Expression.AndAlso(a, b);
 			} else if (predicates.Count() == 1) {
-				return predicates.First().LinqExpression(self);
+				return predicates.First().LinqExpression(bindings);
 			} else {
-				return new ConstantPredicate(false).LinqExpression(self);
+                return new ConstantPredicate(false).LinqExpression(bindings);
 			}
 		}
 
-		private Expression GenerateOr(ParameterExpression self, IEnumerable<Predicate> predicates) {
+        private Expression GenerateOr(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates) {
 			if (predicates.Count() > 2) {
-				Expression a = predicates.First().LinqExpression(self);
-				Expression b = GenerateOr(self, predicates.Skip(1));
+				Expression a = predicates.First().LinqExpression(bindings);
+				Expression b = GenerateOr(bindings, predicates.Skip(1));
 				return Expression.OrElse(a, b);
 			} else if (predicates.Count() == 2) {
-				Expression a = predicates.First().LinqExpression(self);
-				Expression b = predicates.Last().LinqExpression(self);
+				Expression a = predicates.First().LinqExpression(bindings);
+				Expression b = predicates.Last().LinqExpression(bindings);
 				return Expression.OrElse(a, b);
 			} else if (predicates.Count() == 1) {
-				return predicates.First().LinqExpression(self);
+				return predicates.First().LinqExpression(bindings);
 			} else {
-				return new ConstantPredicate(false).LinqExpression(self);
+				return new ConstantPredicate(false).LinqExpression(bindings);
 			}
 		}
 
-		public override Expression LinqExpression(ParameterExpression self)
+		public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
 		{
 			switch (compoundPredicateType) {
 				case CompoundPredicateType.And:
-					return GenerateAnd(self, subpredicates);
+                    return GenerateAnd(bindings, subpredicates);
 				case CompoundPredicateType.Or:
-					return GenerateOr(self, subpredicates);
+                    return GenerateOr(bindings, subpredicates);
 				case CompoundPredicateType.Not:
-					return Expression.Not(subpredicates.First().LinqExpression(self));
+                    return Expression.Not(subpredicates.First().LinqExpression(bindings));
 			}
 			return null;
 		}

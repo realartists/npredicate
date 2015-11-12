@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Collections.Generic;
 
 namespace Predicate
 {
@@ -16,12 +17,14 @@ namespace Predicate
 
 		public Expression<Func<T, bool>> LinqExpression<T>() {
 			ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
-			return Expression.Lambda<Func<T, bool>>(LinqExpression(self), self);
+            var bindings = new Dictionary<string, ParameterExpression>();
+            bindings.Add(self.Name, self);
+            return Expression.Lambda<Func<T, bool>>(LinqExpression(bindings), self);
 		}
 
-		public bool EvaluateObject (dynamic obj) {
-			var expr = this.LinqExpression<dynamic>();
-			Func<dynamic, bool> func = expr.Compile();
+		public bool EvaluateObject<T>(T obj) {
+			var expr = this.LinqExpression<T>();
+			Func<T, bool> func = expr.Compile();
 			return func(obj);
 		}
 
@@ -29,8 +32,8 @@ namespace Predicate
 		public abstract string Format { get; }
 
 		// subclassers implement this (potentially recursively) to provide an expression to the public LinqExpression()
-		// method, given the provided self parameter.
-		public abstract Expression LinqExpression(ParameterExpression self);
+		// method, given the provided bindings.
+		public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings);
 	}
 }
 

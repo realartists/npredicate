@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq.Expressions;
+using System.Collections.Generic;
 
 namespace Predicate
 {
@@ -29,7 +30,7 @@ namespace Predicate
             }
         }
 
-        public override Expression LinqExpression(ParameterExpression self)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
             return Expression.Constant(Value);
         }
