@@ -16,15 +16,21 @@ namespace Predicate
 			Predicate yes = Predicate.Constant(true);
 			Predicate no = Predicate.Constant(false);
 
+			// (YES AND NO)
 			Assert.IsFalse(CompoundPredicate.And(new Predicate[] { yes, no }).EvaluateObject<object>(null));
+			// (YES AND YES)
 			Assert.IsTrue(CompoundPredicate.And(new Predicate[] { yes, yes }).EvaluateObject<object>(null));
+			// (NO AND NO) 
 			Assert.IsFalse(CompoundPredicate.And(new Predicate[] { no, no }).EvaluateObject<object>(null));
+			// (YES AND YES AND YES AND YES AND YES)
 			Assert.IsTrue(CompoundPredicate.And(new Predicate[] { yes, yes, yes, yes, yes }).EvaluateObject<object>(null));
 		}
 
 		[Test ()]
 		public void TestLinq()
 		{
+			// (YES OR NO)
+
 			Predicate yes = Predicate.Constant(true);
 			Predicate no = Predicate.Constant(false);
 
@@ -58,27 +64,32 @@ namespace Predicate
 			doc.Content = "Hello World";
 			doc.Author = user;
 
-			var content = Expr.KeyPath("Content").ValueWithObject<Document, string>(doc);
+			// Content
+			var content = Expr.MakeKeyPath("Content").ValueWithObject<Document, string>(doc);
 			Assert.AreEqual(doc.Content, content);
-			var authorName = Expr.KeyPath("Author.Name").ValueWithObject<Document, string>(doc);
+
+			// Author.Name
+			var authorName = Expr.MakeKeyPath("Author.Name").ValueWithObject<Document, string>(doc);
 			Assert.AreEqual(doc.Author.Name, authorName);
 		}
 
 		[Test()]
 		public void TestSafeNavigation()
 		{
+			// Author.Name
 			Document doc = new Document();
 			doc.Content = "Hello World";
 
-			var authorName = Expr.KeyPath("Author.Name").ValueWithObject<Document, string>(doc);
+			var authorName = Expr.MakeKeyPath("Author.Name").ValueWithObject<Document, string>(doc);
 			Assert.IsNull(authorName);
 		}
 
 		[Test()]
 		public void TestNumericComparison()
 		{
-			var a = Expr.EvaluatedObject();
-			var b = Expr.Constant(1);
+			// SELF = 1
+			var a = Expr.MakeEvaluatedObject();
+			var b = Expr.MakeConstant(1);
 
 			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.LessThan, b);
 
@@ -89,8 +100,9 @@ namespace Predicate
 		[Test()]
 		public void TestStringEquals()
 		{
-			var a = Expr.EvaluatedObject();
-			var b = Expr.Constant("Hello World");
+			// SELF = 'Hello World'
+			var a = Expr.MakeEvaluatedObject();
+			var b = Expr.MakeConstant("Hello World");
 
 			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.EqualTo, b);
 			Assert.IsTrue(p.EvaluateObject("Hello World"));
@@ -100,8 +112,9 @@ namespace Predicate
 		[Test()]
 		public void TestStringEqualsCaseInsensitive()
 		{
-			var a = Expr.EvaluatedObject();
-			var b = Expr.Constant("Hello World");
+			// SELF =[c] 'Hello World'
+			var a = Expr.MakeEvaluatedObject();
+			var b = Expr.MakeConstant("Hello World");
 
 			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.EqualTo, b, ComparisonPredicateModifier.Direct, ComparisonPredicateOptions.CaseInsensitive);
 			Assert.IsTrue(p.EvaluateObject("hello world"));
@@ -110,8 +123,9 @@ namespace Predicate
 		[Test()]
 		public void TestRegex()
 		{
-			var a = Expr.EvaluatedObject();
-			var b = Expr.Constant("^[0-9a-fA-F]+$");
+			// SELF MATCHES '^[0-9a-fA-F]+$'
+			var a = Expr.MakeEvaluatedObject();
+			var b = Expr.MakeConstant("^[0-9a-fA-F]+$");
 
 			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.Matches, b);
 			Assert.IsTrue(p.EvaluateObject("F00DFACE"));
@@ -121,8 +135,9 @@ namespace Predicate
 		[Test()]
 		public void TestIn()
 		{
-			var a = Expr.EvaluatedObject();
-			var b = Expr.Constant(new List<int>(new int[] { 1, 2, 3, 4 }));
+			// SELF IN { 1, 2, 3, 4 }
+			var a = Expr.MakeEvaluatedObject();
+			var b = Expr.MakeConstant(new List<int>(new int[] { 1, 2, 3, 4 }));
 
 			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.In, b);
 			Assert.IsTrue(p.EvaluateObject(1));
@@ -132,8 +147,9 @@ namespace Predicate
 		[Test()]
 		public void TestBetween()
 		{
-			var a = Expr.EvaluatedObject();
-			var b = Expr.Constant(new List<int>(new int[] { 1, 4 }));
+			// SELF BETWEEN { 1, 4 }
+			var a = Expr.MakeEvaluatedObject();
+			var b = Expr.MakeConstant(new List<int>(new int[] { 1, 4 }));
 
 			var p = ComparisonPredicate.Comparison(a, PredicateOperatorType.Between, b);
 			Assert.IsTrue(p.EvaluateObject(2));
@@ -143,20 +159,37 @@ namespace Predicate
 		[Test()]
 		public void TestSubquery()
 		{
-			var k = Expr.Variable("$k");
-			var prefix = Expr.Constant("hello");
+			// SUBQUERY(keywords, $k, $k BEGINSWITH 'hello').@count
+			var k = Expr.MakeVariable("$k");
+			var prefix = Expr.MakeConstant("hello");
 			var subpred = ComparisonPredicate.Comparison(k, PredicateOperatorType.BeginsWith, prefix);
 
-			var haystack = Expr.KeyPath("keywords");
-			var subquery = Expr.Subquery(haystack, "$k", subpred);
+			var haystack = Expr.MakeKeyPath("keywords");
+			var subquery = Expr.MakeSubquery(haystack, "$k", subpred);
 
-			var count = Expr.KeyPath(subquery, "@count");
+			var count = Expr.MakeKeyPath(subquery, "@count");
 
 			var doc = new Document();
 			doc.Keywords = new string[] { "hello world", "hello vietnam", "hello usa", "goodbye cruel world" };
 
 			var helloCount = count.ValueWithObject<Document, int>(doc);
 			Assert.AreEqual(helloCount, 3);
+		}
+
+		[Test()]
+		public void TestAggregate()
+		{
+			// SELF IN { 0, 1 }
+			var zero = Expr.MakeConstant(0);
+			var one = Expr.MakeConstant(1);
+
+			var agg = Expr.MakeAggregate(new Expr[] { zero, one });
+
+			var p = ComparisonPredicate.Comparison(Expr.MakeEvaluatedObject(), PredicateOperatorType.In, agg);
+
+			Assert.IsTrue(p.EvaluateObject(0));
+			Assert.IsTrue(p.EvaluateObject(1));
+			Assert.IsFalse(p.EvaluateObject(2));
 		}
 	}
 }

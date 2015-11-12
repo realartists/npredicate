@@ -45,20 +45,20 @@ namespace Predicate
         }
         public static ComparisonPredicate Comparison(Expr left, PredicateOperatorType op, Expr right, ComparisonPredicateModifier modifier, ComparisonPredicateOptions options) {
             ComparisonPredicate p = new ComparisonPredicate();
-            p.leftExpression = left;
-            p.predicateOperatorType = op;
-            p.rightExpression = right;
-            p.comparisonPredicateModifier = modifier;
-            p.options = options;
+            p.LeftExpression = left;
+            p.PredicateOperatorType = op;
+            p.RightExpression = right;
+            p.ComparisonPredicateModifier = modifier;
+            p.Options = options;
             return p;
         }
 
-        public PredicateOperatorType predicateOperatorType { get; private set; }
-        public ComparisonPredicateModifier comparisonPredicateModifier { get; private set; }
-        public Expr leftExpression { get; private set; }
-        public Expr rightExpression { get; private set; }
+        public PredicateOperatorType PredicateOperatorType { get; private set; }
+        public ComparisonPredicateModifier ComparisonPredicateModifier { get; private set; }
+        public Expr LeftExpression { get; private set; }
+        public Expr RightExpression { get; private set; }
 
-        public ComparisonPredicateOptions options { get; private set; }
+        public ComparisonPredicateOptions Options { get; private set; }
 
         public override string Format
         {
@@ -67,7 +67,7 @@ namespace Predicate
                 string op = "";
                 string opts = "";
 
-                switch (predicateOperatorType)
+                switch (PredicateOperatorType)
                 {
                     case PredicateOperatorType.LessThan:
                         op = "<";
@@ -110,11 +110,11 @@ namespace Predicate
                         break;
                 }
 
-                if (0 != (options & ComparisonPredicateOptions.CaseInsensitive))
+                if (0 != (Options & ComparisonPredicateOptions.CaseInsensitive))
                 {
                     opts += "c";
                 }
-                if (0 != (options & ComparisonPredicateOptions.DiacriticInsensitive))
+                if (0 != (Options & ComparisonPredicateOptions.DiacriticInsensitive))
                 {
                     opts += "d";
                 }
@@ -124,12 +124,12 @@ namespace Predicate
                     op += $"[${opts}]";
                 }
 
-                return "(" + leftExpression.Format + " " + op + " " + rightExpression.Format + ")";
+                return "(" + LeftExpression.Format + " " + op + " " + RightExpression.Format + ")";
             }
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings) {
-            if (options != ComparisonPredicateModifier.Direct)
+            if (ComparisonPredicateModifier != ComparisonPredicateModifier.Direct)
             {
                 // TODO: Rewrite the predicate as a subquery and return generate a LinqExpression on that instead.
                 // ANY toMany.x = 'foo' => SUBQUERY(toMany, $x, $x = 'foo').@count > 0
@@ -137,19 +137,19 @@ namespace Predicate
                 throw new NotImplementedException();
             }
 
-            Expression left = leftExpression.LinqExpression(bindings);
-            Expression right = rightExpression.LinqExpression(bindings);
+            Expression left = LeftExpression.LinqExpression(bindings);
+            Expression right = RightExpression.LinqExpression(bindings);
 
-            if (0 != (options & ComparisonPredicateOptions.CaseInsensitive))
+            if (0 != (Options & ComparisonPredicateOptions.CaseInsensitive))
             {
                 left = Utils.CallSafe(left, "ToLower");
-                if (predicateOperatorType != PredicateOperatorType.Matches)
+                if (PredicateOperatorType != PredicateOperatorType.Matches)
                 {
                     right = Utils.CallSafe(right, "ToLower");
                 }
             }
 
-            switch (predicateOperatorType)
+            switch (PredicateOperatorType)
             {
                 case PredicateOperatorType.LessThan:
                     return Expression.LessThan(left, right);

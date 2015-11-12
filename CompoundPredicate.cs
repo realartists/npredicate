@@ -13,12 +13,12 @@ namespace Predicate
 
 	public class CompoundPredicate : Predicate
 	{
-		public CompoundPredicateType compoundPredicateType {
+		public CompoundPredicateType CompoundPredicateType {
 			get;
 			protected set;
 		}
 
-		public IEnumerable<Predicate> subpredicates {
+		public IEnumerable<Predicate> Subpredicates {
 			get;
 			protected set;
 		}
@@ -27,34 +27,34 @@ namespace Predicate
 
 		public static CompoundPredicate And(IEnumerable<Predicate> subpredicates) {
 			CompoundPredicate p = new CompoundPredicate();
-			p.compoundPredicateType = CompoundPredicateType.And;
-			p.subpredicates = subpredicates;
+			p.CompoundPredicateType = CompoundPredicateType.And;
+			p.Subpredicates = subpredicates;
 			return p;
 		}
 
 		public static CompoundPredicate Or(IEnumerable<Predicate> subpredicates) {
 			CompoundPredicate p = new CompoundPredicate();
-			p.compoundPredicateType = CompoundPredicateType.Or;
-			p.subpredicates = subpredicates;
+			p.CompoundPredicateType = CompoundPredicateType.Or;
+			p.Subpredicates = subpredicates;
 			return p;
 		}
 
 		public static CompoundPredicate Not(Predicate subpredicate) {
 			CompoundPredicate p = new CompoundPredicate();
-			p.compoundPredicateType = CompoundPredicateType.Not;
+			p.CompoundPredicateType = CompoundPredicateType.Not;
 			var l = new List<Predicate> ();
 			l.Add (subpredicate);
-			p.subpredicates = l;
+			p.Subpredicates = l;
 			return p;
 		}
 
 		public override string Format {
 			get {
-				switch (compoundPredicateType) {
+				switch (CompoundPredicateType) {
                     case CompoundPredicateType.And:
-                        return "(" + String.Join(" AND ", subpredicates) + ")";
+                        return "(" + String.Join(" AND ", Subpredicates) + ")";
                     case CompoundPredicateType.Or:
-                        return "(" + String.Join(" OR ", subpredicates) + ")";
+                        return "(" + String.Join(" OR ", Subpredicates) + ")";
 				    case CompoundPredicateType.Not:
 					    return "NOT (${subpredicates.First().Format})";
 				}
@@ -96,13 +96,13 @@ namespace Predicate
 
 		public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
 		{
-			switch (compoundPredicateType) {
+			switch (CompoundPredicateType) {
 				case CompoundPredicateType.And:
-                    return GenerateAnd(bindings, subpredicates);
+                    return GenerateAnd(bindings, Subpredicates);
 				case CompoundPredicateType.Or:
-                    return GenerateOr(bindings, subpredicates);
+                    return GenerateOr(bindings, Subpredicates);
 				case CompoundPredicateType.Not:
-                    return Expression.Not(subpredicates.First().LinqExpression(bindings));
+                    return Expression.Not(Subpredicates.First().LinqExpression(bindings));
 			}
 			return null;
 		}

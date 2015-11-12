@@ -21,67 +21,67 @@ namespace Predicate
 
     public abstract class Expr
     {
-        public ExpressionType expressionType
+        public ExpressionType ExpressionType
         {
             get; 
             protected set;
         }
 
-        public dynamic constantValue
+        public dynamic ConstantValue
         {
             get;
             protected set;
         }
 
-        public string keyPath
+        public string KeyPath
         {
             get;
             protected set;
         }
 
-        public string function
+        public string Function
         {
             get;
             protected set;
         }
 
-        public string variable
+        public string Variable
         {
             get;
             protected set;
         }
 
-        public Expr operand
+        public Expr Operand
         {
             get;
             protected set;
         }
 
-        public IEnumerable<Expr> arguments
+        public IEnumerable<Expr> Arguments
         {
             get;
             protected set;
         }
 
-        public Expr collection
+        public Expr Collection
         {
             get;
             protected set;
         }
 
-        public Predicate predicate
+        public Predicate Predicate
         {
             get;
             protected set;
         }
 
-        public Expr leftExpression
+        public Expr LeftExpression
         {
             get;
             protected set;
         }
 
-        public Expr rightExpression
+        public Expr RightExpression
         {
             get;
             protected set;
@@ -91,48 +91,48 @@ namespace Predicate
             return null;
         }
 
-        public static Expr Constant(dynamic obj) {
+        public static Expr MakeConstant(dynamic obj) {
             return new ConstantExpr(obj);
         }
 
-        public static Expr EvaluatedObject() {
+        public static Expr MakeEvaluatedObject() {
             return new EvaluatedObjectExpr();
         }
 
-        public static Expr Variable(string variable) {
+        public static Expr MakeVariable(string variable) {
             return new VariableExpr(variable);
         }
 
-        public static Expr KeyPath(string keyPath) {
+        public static Expr MakeKeyPath(string keyPath) {
             return new KeyPathExpr(keyPath);
         }
 
-        public static Expr KeyPath(Expr operand, string keyPath) {
+        public static Expr MakeKeyPath(Expr operand, string keyPath) {
             return new KeyPathExpr(operand, keyPath);
         }
 
-        public static Expr Function(string name, IEnumerable<Expr> arguments) {
+        public static Expr MakeFunction(string name, IEnumerable<Expr> arguments) {
             return new FunctionExpr(name, arguments);
         }
 
-        public static Expr Aggregate(IEnumerable<Expr> subexpressions) {
-            return new AggregateExpr();
-        }
-
-        public static Expr UnionSet(Expr left, Expr right) {
+        public static Expr MakeUnionSet(Expr left, Expr right) {
             return new SetExpr();
         }
 
-        public static Expr IntersectSet(Expr left, Expr right) {
+        public static Expr MakeIntersectSet(Expr left, Expr right) {
             return new SetExpr();
         }
 
-        public static Expr MinusSet(Expr left, Expr right) {
+        public static Expr MakeMinusSet(Expr left, Expr right) {
             return new SetExpr();
         }
             
-        public static Expr Subquery(Expr expr, string variable, Predicate predicate) {
+        public static Expr MakeSubquery(Expr expr, string variable, Predicate predicate) {
             return new SubqueryExpr(expr, variable, predicate);
+        }
+
+        public static Expr MakeAggregate(IEnumerable<Expr> components) {
+            return new AggregateExpr(components);
         }
 
         public Expression<Func<T, V>> LinqExpression<T, V>() {
@@ -169,26 +169,26 @@ namespace Predicate
 
     class ConstantExpr : Expr {
         public ConstantExpr(dynamic value) {
-            expressionType = ExpressionType.ConstantValueExpressionType;
-            constantValue = value;
+            ExpressionType = ExpressionType.ConstantValueExpressionType;
+            ConstantValue = value;
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            return Expression.Constant(constantValue);
+            return Expression.Constant(ConstantValue);
         }
 
         public override string Format
         {
             get {
-                return constantValue?.ToString() ?? "null";
+                return ConstantValue?.ToString() ?? "null";
             }
         }
     }
 
     class EvaluatedObjectExpr : Expr {
         public EvaluatedObjectExpr() {
-            expressionType = ExpressionType.EvaluatedObjectExpressionType;
+            ExpressionType = ExpressionType.EvaluatedObjectExpressionType;
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
@@ -206,19 +206,19 @@ namespace Predicate
 
     class VariableExpr : Expr {
         public VariableExpr(string variable) {
-            this.expressionType = ExpressionType.VariableExpressionType;
-            this.variable = variable;
+            this.ExpressionType = ExpressionType.VariableExpressionType;
+            this.Variable = variable;
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            return bindings[variable];
+            return bindings[Variable];
         }
 
         public override string Format
         {
             get {
-                return variable;
+                return Variable;
             }
         }
     }
@@ -226,20 +226,20 @@ namespace Predicate
     class KeyPathExpr : Expr {
 
         public KeyPathExpr(string keyPath) {
-            this.expressionType = ExpressionType.KeyPathExpressionType;
-            this.keyPath = keyPath;
+            this.ExpressionType = ExpressionType.KeyPathExpressionType;
+            this.KeyPath = keyPath;
         }
 
         public KeyPathExpr(Expr operand, string keyPath) {
-            this.expressionType = ExpressionType.KeyPathExpressionType;
-            this.operand = operand;
-            this.keyPath = keyPath;
+            this.ExpressionType = ExpressionType.KeyPathExpressionType;
+            this.Operand = operand;
+            this.KeyPath = keyPath;
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            string[] keys = keyPath.Split('.');
-            Expression result = operand != null ? operand.LinqExpression(bindings) : bindings["SELF"];
+            string[] keys = KeyPath.Split('.');
+            Expression result = Operand != null ? Operand.LinqExpression(bindings) : bindings["SELF"];
             foreach (string key in keys) {
                 if (key.ToLower() == "self") {
                     continue;
@@ -293,16 +293,16 @@ namespace Predicate
         public override string Format
         {
             get {
-                return keyPath;
+                return KeyPath;
             }
         }
     }
 
     class FunctionExpr : Expr {
         public FunctionExpr(string function, IEnumerable<Expr> arguments) {
-            this.expressionType = ExpressionType.FunctionExpressionType;
-            this.function = function;
-            this.arguments = arguments;
+            this.ExpressionType = ExpressionType.FunctionExpressionType;
+            this.Function = function;
+            this.Arguments = arguments;
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
@@ -334,10 +334,10 @@ namespace Predicate
 
     class SubqueryExpr : Expr {
         public SubqueryExpr(Expr collection, string variableName, Predicate predicate) {
-            this.expressionType = ExpressionType.SubqueryExpressionType;
-            this.collection = collection;
-            this.variable = variableName;
-            this.predicate = predicate;
+            this.ExpressionType = ExpressionType.SubqueryExpressionType;
+            this.Collection = collection;
+            this.Variable = variableName;
+            this.Predicate = predicate;
         }
 
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
@@ -345,7 +345,7 @@ namespace Predicate
             // Generate code for
             // collection.Where(variable => predicate)
 
-            var collectionExpression = collection.LinqExpression(bindings);
+            var collectionExpression = Collection.LinqExpression(bindings);
             Type itemType = null;
             if (collectionExpression.Type.IsSubclassOf(typeof(Array))) 
             {
@@ -356,10 +356,10 @@ namespace Predicate
                 itemType = collectionExpression.Type.GetGenericArguments()[0];
             }
                 
-            ParameterExpression varExpr = Expression.Parameter(itemType, variable);
+            ParameterExpression varExpr = Expression.Parameter(itemType, Variable);
             var subBindings = new Dictionary<string, ParameterExpression>(bindings);
-            subBindings[variable] = varExpr;
-            var p = predicate.LinqExpression(subBindings);
+            subBindings[Variable] = varExpr;
+            var p = Predicate.LinqExpression(subBindings);
 
             Type arg0OpenType = typeof(IEnumerable<>);
             //Type arg0Type = arg0OpenType.MakeGenericType(new Type[] { itemType });
@@ -379,21 +379,37 @@ namespace Predicate
         public override string Format
         {
             get {
-                return $"SUBQUERY(${collection.Format}, ${variable}, ${predicate}";
+                return $"SUBQUERY(${Collection.Format}, ${Variable}, ${Predicate}";
             }
         }
     }
 
     class AggregateExpr : Expr {
+        public AggregateExpr(IEnumerable<Expr> components) {
+            this.ExpressionType = ExpressionType.AggregateExpressionType;
+            this.Arguments = components;
+        }
+
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
         {
-            throw new NotImplementedException();
+            var exprs = new List<Expression>();
+            Type type = typeof(object);
+            foreach (var e in Arguments)
+            {
+                var l = e.LinqExpression(bindings);
+                type = l.Type;
+                exprs.Add(l);
+            }
+            Type listOpenType = typeof(List<>);
+            Type listType = listOpenType.MakeGenericType(new Type[] { type });
+            return Expression.ListInit(Expression.New(listType), exprs);
         }
 
         public override string Format
         {
             get {
-                throw new NotImplementedException();
+                var delimited = String.Join(", ", Arguments.Select(a => a.Format));
+                return "{ " + delimited + " }";
             }
         }
     }

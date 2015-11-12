@@ -15,13 +15,6 @@ namespace Predicate
             Value = val;
         }
 
-        #if false
-        public override bool EvaluateObject(dynamic obj)
-        {
-            return Value;
-        } 
-        #endif
-
         public override string Format
         {
             get
