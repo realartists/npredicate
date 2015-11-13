@@ -435,6 +435,8 @@ namespace Predicate
                     return Expression.OnesComplement(arg0);
                 case "length:":
                     return Utils.CallSafe(arg0, "Length");
+                case "cast:to:":
+                    return Cast(arg0, arg1);
             }
             throw new NotImplementedException($"${Function} not implemented");
         }
@@ -450,6 +452,57 @@ namespace Predicate
         private Expression CallMath(string fn, params Expression[] args) {
             var mathMethod = typeof(System.Math).GetMethod(fn, args.Select(x => x.Type).ToArray());
             return Expression.Call(mathMethod, args);
+        }
+
+        private Expression Cast(Expression arg0, Expression arg1) {
+            #if false
+            var destType = (Arguments.ElementAt(1) as ConstantExpr)?.ConstantValue;
+
+            if (destType != "NSNumber" || destType != "NSDate")
+            {
+                throw new NotImplementedException($"Cannot cast to any type except for NSDate or NSNumber, but got ${Arguments.ElementAt(1).Format}");
+            }
+
+            if (destType == "NSNumber")
+            {
+                // Can convert the following types to numbers
+                // string, date
+
+                if (arg0.Type == typeof(string))
+                {
+
+                }
+                else if (arg0.Type == typeof(DateTime))
+                {
+
+                }
+                else
+                {
+                    throw new NotImplementedException($"Cannot cast ${arg0.Type} to NSNumber");
+                }
+            }
+            else if (destType == "NSDate")
+            {
+                // Can convert strings and doubles to dates
+                if (arg0.Type == typeof(string))
+                {
+                    var parseMethod = typeof(DateTime).GetMethod("Parse", new Type[] { typeof(string) });
+                    return Expression.Call(null, parseMethod, arg0);
+                } else if (arg0.Type == typeof(double)) {
+                    // get seconds and millis
+                    var secondsExpr = Expr.MakeFunction("floor:", Arguments.First()).LinqExpression(bindings);
+                    var millisExpr = Expr.MakeFunction("from:subtract:", Arguments.First(), Expr.MakeFunction("floor:", Arguments.First())).LinqExpression(bindings);
+
+                }
+
+            }
+            else
+            {
+                Debug.Assert(false);
+            }
+            #endif
+
+            return null;
         }
 
         public override string Format
