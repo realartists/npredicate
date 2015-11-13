@@ -2,7 +2,7 @@
     See here: https://github.com/apportable/Foundation
 */
 
-grammar Predicate;
+grammar NSPredicate;
 
 options {
     language=CSharp;
