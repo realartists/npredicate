@@ -445,7 +445,12 @@ namespace Predicate
 
         private Expression CallAggregate(string aggregate, Expression arg) {
             var aggregateMethod = typeof(System.Linq.Enumerable).GetMethod(aggregate, new Type[] { arg.Type });
-            Debug.Assert(aggregateMethod != null && !aggregateMethod.ContainsGenericParameters);
+            if (aggregateMethod == null && arg.Type.GetGenericArguments().Length > 0)
+            {
+                Type itemType = arg.Type.GetGenericArguments()[0];
+                var aggregateOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), aggregate, new Type[] { typeof(IEnumerable<>) });
+                aggregateMethod = aggregateOpenMethod.MakeGenericMethod(itemType);
+            }
             return Expression.Call(aggregateMethod, arg);
         }
 
