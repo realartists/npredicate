@@ -7,6 +7,9 @@ using System.Data.Entity;
 using System.Data.Common;
 using Effort;
 
+// The Effort stuff doesn't seem to work on Mono :(
+#if !__MonoCS__
+
 namespace Predicate
 {
     public class TestEFUser {
@@ -138,6 +141,16 @@ namespace Predicate
             Assert.AreEqual(1, matches.Count());
         }
 
+        [Test]
+        public void TestMatches()
+        {
+            var d1 = Context.Documents.Where(x => Utils._Predicate_MatchesRegex(x.Content, ".*World$"));
+
+            var predicate = Predicate.WithFormat("Content MATCHES '.*World$'");
+            var d2 = Context.Documents.Where(predicate);
+            // Assert.Throws<Exception>(delegate { Context.Documents.Where(predicate); });
+        }
     }
 }
 
+#endif

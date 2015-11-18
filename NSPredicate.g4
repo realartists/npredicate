@@ -4,109 +4,101 @@
 
 grammar NSPredicate;
 
-options {
-    language=CSharp;
-}   
-
 // Parser
 
 predicate
-    : comparison_predicate
+    : comparison_predicate      # PredicateComparison
     // compound_predicate
-    | predicate AND predicate
-    | predicate OR predicate
-    | NOT predicate
+    | predicate AND predicate   # PredicateAnd
+    | predicate OR predicate    # PredicateOr
+    | NOT predicate             # PredicateNot
     // --
-    | TRUE_PREDICATE
-    | FALSE_PREDICATE
-    | '(' predicate ')'
+    | TRUE_PREDICATE            # PredicateTrue
+    | FALSE_PREDICATE           # PredicateFalse
+    | '(' predicate ')'         # PredicateParens
     ;
     
 comparison_predicate
-    : unqualified_comparison_predicate
-    | ANY unqualified_comparison_predicate
-    | SOME unqualified_comparison_predicate
-    | ALL unqualified_comparison_predicate
-    | NONE unqualified_comparison_predicate
+    : unqualified_comparison_predicate          # ComparisonPredicateUnqualified
+    | ANY unqualified_comparison_predicate      # ComparisonPredicateAny
+    | SOME unqualified_comparison_predicate     # ComparisonPredicateSome
+    | ALL unqualified_comparison_predicate      # ComparisonPredicateAll
+    | NONE unqualified_comparison_predicate     # ComparisonPredicateNone
     ;
 
-unqualified_comparison_predicate : expression operator expression ;
+unqualified_comparison_predicate : expression operator expression # UnqualifiedComparisonPredicate
+                                 ;
 
 operator
-    : BETWEEN
-    | operator_with_options
+    : BETWEEN                   # OperatorBetween
+    | operator_with_options     # OperatorOptions
     ;
 
 operator_with_options
-    : operator_type
-    | operator_type '[' IDENTIFIER ']'
+    : operator_type             # OperatorOptionsBare
+    | operator_type '[' IDENTIFIER ']' # OperatorOptionsSpecified
     ;
     
 operator_type
-    : EQUAL
-    | NOT_EQUAL
-    | LESS_THAN
-    | GREATER_THAN
-    | LESS_THAN_OR_EQUAL
-    | GREATER_THAN_OR_EQUAL
-    | CONTAINS
-    | IN
-    | BEGINS_WITH
-    | ENDS_WITH
-    | LIKE
-    | MATCHES
+    : EQUAL                     # OpEqualTo
+    | NOT_EQUAL                 # OpNotEqualTo
+    | LESS_THAN                 # OpLessThan
+    | GREATER_THAN              # OpGreaterThan
+    | LESS_THAN_OR_EQUAL        # OpLessThanOrEqualTo
+    | GREATER_THAN_OR_EQUAL     # OpGreaterThanOrEqualTo
+    | CONTAINS                  # OpContains
+    | IN                        # OpIn
+    | BEGINS_WITH               # OpBeginsWith
+    | ENDS_WITH                 # OpEndsWith
+    | LIKE                      # OpLike
+    | MATCHES                   # OpMatches
     ;
     
 expression
     // binary
-    : expression '**' expression
-    | expression '*' expression
-    | expression '/' expression
-    | expression '+' expression
-    | expression '-' expression
-    | '-' expression
+    : expression '**' expression    # ExprPower
+    | expression '*' expression     # ExprMult
+    | expression '/' expression     # ExprDiv
+    | expression '+' expression     # ExprAdd
+    | expression '-' expression     # ExprSub
+    | '-' expression                # ExprUnaryMinus
     // --
-    | expression '[' index ']'
-    | IDENTIFIER '(' ')'
-    | IDENTIFIER '(' expression_list ')'
-    | variable ASSIGN expression
+    | expression '[' index ']'      # ExprIndex
+    | IDENTIFIER '(' ')'            # ExprNoArgFunction
+    | IDENTIFIER '(' expression_list ')'    # ExprArgFunction
+    | variable ASSIGN expression            # ExprAssign
     // keypath
-    | IDENTIFIER
-    | '@' IDENTIFIER
-    | expression '.' expression
+    | IDENTIFIER                            # ExprKeypathIdentifier
+    | '@' IDENTIFIER                        # ExprKeypathAtIdentifier
+    | expression '.' expression             # ExprKeypathBinaryExpressions
     // --
-    | value_expression
-    | '(' expression ')'
+    | value_expression                      # ExprConstant
+    | '(' expression ')'                    # ExprParens
     ;
     
 index
-    : expression
-    | FIRST
-    | LAST
-    | SIZE
+    : expression    # IndexExpr
+    | FIRST         # IndexFirst
+    | LAST          # IndexLast
+    | SIZE          # IndexSize
     ;
     
 value_expression
-    : STRING
-    | NUMBER
-    | '%' format
-    | variable
-    | NULL
-    | TRUE
-    | FALSE
-    | SELF
-    | '{' '}'
-    | '{' expression_list '}'
+    : STRING        # ValueString
+    | NUMBER        # ValueNumber
+    | FORMAT        # ValueFormat
+    | variable      # ValueVariable
+    | NULL          # ValueNull
+    | TRUE          # ValueTrue
+    | FALSE         # ValueFalse
+    | SELF          # ValueSelf
+    | '{' '}'       # ValueEmptyAggregate
+    | '{' expression_list '}'   # ValueAggregate
     ;
     
 expression_list
-    : expression
-    | expression_list ',' expression
-    ;
-
-format
-    : '@'
-    | IDENTIFIER
+    : expression    # ExprListSingle
+    | expression_list ',' expression # ExprListAccum
     ;
     
 variable
@@ -163,6 +155,17 @@ SINGLE_QUOTED_STRING	:	'\'' (ESC | ~[\'\\])* '\'' ;
 fragment ESC	:	'\\' (["\'\\/bfnrt] | UNICODE) ;
 fragment UNICODE	:	'u' HEX HEX HEX HEX ;
 fragment HEX	:	[0-9a-fA-F] ;
+
+FORMAT
+    : '%@'
+    | '%K'
+    | '%d'
+    | '%ld'
+    | '%s'
+    | '%f'
+    | '%lf'
+    ;
+
 
 NUMBER	:	'-'? INT '.' [0-9]+ EXP?
 		|	'-'? INT EXP

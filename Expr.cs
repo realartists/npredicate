@@ -16,6 +16,7 @@ namespace Predicate
         UnionSetExpressionType, // Expression that returns the result of doing a unionSet: on two expressions that evaluate to flat collections (arrays or sets)
         IntersectSetExpressionType, // Expression that returns the result of doing an intersectSet: on two expressions that evaluate to flat collections (arrays or sets)
         MinusSetExpressionType, // Expression that returns the result of doing a minusSet: on two expressions that evaluate to flat collections (arrays or sets)
+        SymbolicValueExpressionType = 11,
         SubqueryExpressionType = 13,
         AggregateExpressionType = 14,
     }       
@@ -88,8 +89,8 @@ namespace Predicate
             protected set;
         }
             
-        public static Expr WithFormat(string format, params string[] arguments) {
-            return null;
+        public static Expr WithFormat(string format, params dynamic[] arguments) {
+            return new PredicateParser(format, arguments).ParseExpr();
         }
 
         public static Expr MakeConstant(dynamic obj) {
@@ -140,6 +141,10 @@ namespace Predicate
             return new AggregateExpr(components);
         }
 
+        public static Expr MakeSymbolic(SymbolicValueType symbolType) {
+            return new SymbolicValueExpr(symbolType);
+        }
+
         public Expression<Func<T, V>> LinqExpression<T, V>() {
             var bindings = new Dictionary<string, ParameterExpression>();
             ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
@@ -153,6 +158,10 @@ namespace Predicate
             return func(obj);
         }
 
+        public V Value<V>() {
+            return ValueWithObject<dynamic, V>(null);
+        }
+
         public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings);
 
         public abstract string Format { get; }
@@ -161,14 +170,29 @@ namespace Predicate
 
         private static readonly Func<MethodInfo, IEnumerable<Type>> ParameterTypeProjection = 
             method => method.GetParameters()
-                .Select(p => p.ParameterType.GetGenericTypeDefinition());
+                .Select(p => p.ParameterType.ContainsGenericParameters ? p.ParameterType.GetGenericTypeDefinition() : p.ParameterType);
 
         protected static MethodInfo GetGenericMethod(Type type, string name, params Type[] parameterTypes)
         {
+            foreach (var method in type.GetMethods())
+            {
+                if (method.Name == name)
+                {
+                    var projection = ParameterTypeProjection(method);
+                    if (parameterTypes.SequenceEqual(projection))
+                    {
+                        return method;
+                    }
+                }
+            }
+            return null;
+
+            #if false
             return (from method in type.GetMethods()
                 where method.Name == name
                 where parameterTypes.SequenceEqual(ParameterTypeProjection(method))
                 select method).SingleOrDefault();
+            #endif
         }
     }
 
@@ -186,7 +210,14 @@ namespace Predicate
         public override string Format
         {
             get {
-                return ConstantValue?.ToString() ?? "null";
+                if (ConstantValue is string)
+                {
+                    return "'" + ConstantValue.ToString() + "'";
+                }
+                else
+                {
+                    return ConstantValue?.ToString() ?? "null";
+                }
             }
         }
     }
@@ -437,21 +468,35 @@ namespace Predicate
                     return Utils.CallSafe(arg0, "Length");
                 case "cast:to:":
                     return Cast(arg0, arg1);
+                case "objectFrom:withIndex:":
+                    return GetObjectAtIndex(arg0, arg1, bindings);
             }
             throw new NotImplementedException($"${Function} not implemented");
         }
 
         static Random Rand = new Random();
 
-        private Expression CallAggregate(string aggregate, Expression arg) {
-            var aggregateMethod = typeof(System.Linq.Enumerable).GetMethod(aggregate, new Type[] { arg.Type });
-            if (aggregateMethod == null && arg.Type.GetGenericArguments().Length > 0)
+        private Expression CallAggregate(string aggregate, params Expression[] args) {
+            Debug.Assert(args.Length > 0);
+            List<Type> types = new List<Type>();
+            types.AddRange(args.Select(e => e.Type));
+            var aggregateMethod = typeof(System.Linq.Enumerable).GetMethod(aggregate, types.ToArray());
+            if (aggregateMethod == null)
             {
-                Type itemType = arg.Type.GetGenericArguments()[0];
-                var aggregateOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), aggregate, new Type[] { typeof(IEnumerable<>) });
+                Type itemType;
+                if (types[0].GetGenericArguments().Length > 0)
+                {
+                    itemType = types[0].GetGenericArguments()[0];
+                }
+                else
+                {
+                    itemType = Expression.ArrayIndex(args[0], Expression.Constant(0)).Type;
+                }
+                types[0] = typeof(IEnumerable<>);
+                var aggregateOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), aggregate, types.ToArray());
                 aggregateMethod = aggregateOpenMethod.MakeGenericMethod(itemType);
             }
-            return Expression.Call(aggregateMethod, arg);
+            return Expression.Call(aggregateMethod, args);
         }
 
         private Expression CallMath(string fn, params Expression[] args) {
@@ -508,6 +553,26 @@ namespace Predicate
             #endif
 
             return null;
+        }
+
+        private Expression GetObjectAtIndex(Expression lhs, Expression rhs, Dictionary<string, ParameterExpression> bindings) {
+            Expr indexExpr = Arguments.ElementAt(1);
+            if (indexExpr is SymbolicValueExpr)
+            {
+                switch ((indexExpr as SymbolicValueExpr).SymbolType)
+                {
+                    case SymbolicValueType.FIRST:
+                        rhs = Expression.Constant(0);
+                        break;
+                    case SymbolicValueType.LAST:
+                        rhs = Expression.Subtract(CallAggregate("Count", lhs), Expression.Constant(1));
+                        break;
+                    case SymbolicValueType.SIZE:
+                        return CallAggregate("Count", lhs);
+                }
+            }
+
+            return CallAggregate("ElementAtOrDefault", lhs, rhs);
         }
 
         public override string Format
@@ -615,5 +680,43 @@ namespace Predicate
         }
     }
 
+    public enum SymbolicValueType {
+        FIRST,
+        LAST,
+        SIZE
+    }
+
+    class SymbolicValueExpr : Expr {
+        public SymbolicValueType SymbolType { get; private set; }
+
+        public SymbolicValueExpr(SymbolicValueType symbolType)
+        {
+            SymbolType = symbolType;
+        }
+
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        {
+            // SymbolicValueExpr is special. It needs to know about what it's being called on to do anything useful.
+            // See FunctionExpr objectFrom:withIndex:
+            return Expression.Constant(0); 
+        }
+
+        public override string Format
+        {
+            get
+            {
+                switch (SymbolType)
+                {
+                    case SymbolicValueType.FIRST:
+                        return "FIRST";
+                    case SymbolicValueType.LAST:
+                        return "LAST";
+                    case SymbolicValueType.SIZE:
+                        return "SIZE";
+                }
+                return null;
+            }
+        }
+    }
 }
 

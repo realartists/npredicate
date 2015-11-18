@@ -8,7 +8,7 @@ namespace Predicate
 	public abstract class Predicate
 	{
 		public static Predicate WithFormat(string format, params dynamic[] args) {
-			return null;
+            return new PredicateParser(format, args).ParsePredicate();
 		}
 
 		public static Predicate Constant(bool value) {
@@ -35,5 +35,13 @@ namespace Predicate
 		// method, given the provided bindings.
 		public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings);
 	}
+
+    public static class PredicateExtensions {
+        public static IEnumerable<T> Where<T>(this IEnumerable<T> e, Predicate p) {
+            var linq = p.LinqExpression<T>();
+            var result = e.Where(linq.Compile());
+            return result;
+        }
+    }
 }
 

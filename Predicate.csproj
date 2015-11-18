@@ -62,6 +62,12 @@
     <Compile Include="ComparisonPredicate.cs" />
     <Compile Include="Expr.cs" />
     <Compile Include="Utils.cs" />
+    <Compile Include="NSPredicateBaseListener.cs" />
+    <Compile Include="NSPredicateLexer.cs" />
+    <Compile Include="NSPredicateListener.cs" />
+    <Compile Include="NSPredicateParser.cs" />
+    <Compile Include="PredicateParser.cs" />
+    <Compile Include="ParseTest.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

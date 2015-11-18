@@ -232,6 +232,13 @@ namespace Predicate
 			Assert.AreEqual("hello", lower.ValueWithObject<string, string>("Hello"));
 			Assert.AreEqual("HELLO", upper.ValueWithObject<string, string>("Hello"));
 		}
+
+        [Test()]
+        public void TestFormatString() 
+        {
+            var expr = Expr.MakeConstant("Hello World");
+            Assert.AreEqual("'Hello World'", expr.Format);
+        }
 	}
 }
 
