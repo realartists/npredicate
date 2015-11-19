@@ -126,7 +126,7 @@ namespace Predicate
         public void TestSubquery2()
         {
             // SUBQUERY(keywords, $k, $k BEGINSWITH 'hello').@count
-            var count = Expr.Parse("SUBQUERY(keywords, $k, $k BEGINSWITH 'hello')[SIZE]");
+            var count = Expr.Parse("subquery(keywords, $k, $k BEGINSWITH 'hello')[SIZE]");
 
             var doc = new Document();
             doc.Keywords = new string[] { "hello world", "hello vietnam", "hello usa", "goodbye cruel world" };

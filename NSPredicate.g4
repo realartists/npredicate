@@ -64,7 +64,7 @@ expression
     | expression '-' expression     # ExprSub
     // --
     | expression '[' index ']'      # ExprIndex
-    | 'SUBQUERY' '(' expression ',' variable ',' predicate ')'    # ExprSubquery
+    | SUBQUERY '(' expression ',' variable ',' predicate ')'    # ExprSubquery
     | IDENTIFIER '(' ')'            # ExprNoArgFunction
     | IDENTIFIER '(' expression_list ')'    # ExprArgFunction
     | variable ASSIGN expression            # ExprAssign
@@ -146,6 +146,8 @@ SELF : 'self' | 'SELF' ;
 FIRST : 'first' | 'FIRST' ;
 LAST : 'last' | 'LAST' ;
 SIZE : 'size' | 'SIZE' ;
+
+SUBQUERY : 'subquery' | 'SUBQUERY' ;
 
 ASSIGN : ':=' ;
 
