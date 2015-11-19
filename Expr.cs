@@ -90,7 +90,7 @@ namespace Predicate
             protected set;
         }
             
-        public static Expr WithFormat(string format, params dynamic[] arguments) {
+        public static Expr Parse(string format, params dynamic[] arguments) {
             return new PredicateParser(format, arguments).ParseExpr();
         }
 
@@ -170,6 +170,11 @@ namespace Predicate
         public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings);
 
         public abstract string Format { get; }
+
+        public override string ToString()
+        {
+            return Format;            
+        }
 
         protected Expr() { }
     }

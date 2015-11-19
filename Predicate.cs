@@ -7,7 +7,7 @@ namespace Predicate
 {
 	public abstract class Predicate
 	{
-		public static Predicate WithFormat(string format, params dynamic[] args) {
+		public static Predicate Parse(string format, params dynamic[] args) {
             return new PredicateParser(format, args).ParsePredicate();
 		}
 
@@ -30,6 +30,11 @@ namespace Predicate
 
 		// Subclassers must implement:
 		public abstract string Format { get; }
+
+        public override string ToString()
+        {
+            return Format;
+        }
 
 		// subclassers implement this (potentially recursively) to provide an expression to the public LinqExpression()
 		// method, given the provided bindings.
