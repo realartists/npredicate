@@ -172,33 +172,6 @@ namespace Predicate
         public abstract string Format { get; }
 
         protected Expr() { }
-
-        private static readonly Func<MethodInfo, IEnumerable<Type>> ParameterTypeProjection = 
-            method => method.GetParameters()
-                .Select(p => p.ParameterType.ContainsGenericParameters ? p.ParameterType.GetGenericTypeDefinition() : p.ParameterType);
-
-        protected static MethodInfo GetGenericMethod(Type type, string name, params Type[] parameterTypes)
-        {
-            foreach (var method in type.GetMethods())
-            {
-                if (method.Name == name)
-                {
-                    var projection = ParameterTypeProjection(method);
-                    if (parameterTypes.SequenceEqual(projection))
-                    {
-                        return method;
-                    }
-                }
-            }
-            return null;
-
-            #if false
-            return (from method in type.GetMethods()
-                where method.Name == name
-                where parameterTypes.SequenceEqual(ParameterTypeProjection(method))
-                select method).SingleOrDefault();
-            #endif
-        }
     }
 
     class ConstantExpr : Expr {
@@ -309,10 +282,18 @@ namespace Predicate
 
                     Type arg0OpenType = typeof(IEnumerable<>);
 
-                    var countOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), "Count", new Type[] { arg0OpenType });
+                    var countOpenMethod = Utils.GetGenericMethod(typeof(System.Linq.Enumerable), "Count", new Type[] { arg0OpenType });
                     var countMethod = countOpenMethod.MakeGenericMethod(new Type[] { itemType });
 
                     propertyExpr = Expression.Call(null, countMethod, result);
+                } 
+                else if (Utils.TypeIsEnumerable(result.Type))
+                {
+                    ParameterExpression t = Expression.Parameter(Utils.ElementType(result.Type));
+                    Expression eachPropertyExpr = Expression.Property(t, key);
+                    Expression map = Expression.Lambda(eachPropertyExpr, new ParameterExpression[] { t });
+                    var selectExpr = Utils.CallAggregate("Select", result, map);
+                    propertyExpr = selectExpr;
                 }
                 else
                 {
@@ -396,15 +377,15 @@ namespace Predicate
 
             switch (Function) {
                 case "sum:":
-                    return CallAggregate("Sum", arg0);
+                    return Utils.CallAggregate("Sum", arg0);
                 case "count:":
-                    return CallAggregate("Count", arg0);
+                    return Utils.CallAggregate("Count", arg0);
                 case "min:":
-                    return CallAggregate("Min", arg0);
+                    return Utils.CallAggregate("Min", arg0);
                 case "max:":
-                    return CallAggregate("Max", arg0);
+                    return Utils.CallAggregate("Max", arg0);
                 case "average:":
-                    return CallAggregate("Average", arg0);
+                    return Utils.CallAggregate("Average", arg0);
                 case "median:":
                     break; // TODO
                 case "mode:":
@@ -422,23 +403,23 @@ namespace Predicate
                 case "modulus:by:":
                     return Expression.Modulo(arg0, arg1);
                 case "sqrt:":
-                    return CallMath("Sqrt", arg0);
+                    return Utils.CallMath("Sqrt", arg0);
                 case "log:":
-                    return CallMath("Log10", arg0);
+                    return Utils.CallMath("Log10", arg0);
                 case "ln:":
-                    return CallMath("Log", arg0);
+                    return Utils.CallMath("Log", arg0);
                 case "raise:toPower:":
                     return Expression.Power(arg0, arg1);
                 case "exp:":
                     return Expression.Power(Expression.Constant(Math.E), arg0);
                 case "floor:":
-                    return CallMath("Floor", arg0);
+                    return Utils.CallMath("Floor", arg0);
                 case "ceiling":
-                    return CallMath("Ceiling", arg0);
+                    return Utils.CallMath("Ceiling", arg0);
                 case "abs:":
-                    return CallMath("Abs", arg0);
+                    return Utils.CallMath("Abs", arg0);
                 case "trunc:":
-                    return CallMath("Truncate", arg0);
+                    return Utils.CallMath("Truncate", arg0);
                 case "negate:":
                     return Expression.Negate(arg0);
                 case "uppercase:":
@@ -482,34 +463,6 @@ namespace Predicate
         }
 
         static Random Rand = new Random();
-
-        private Expression CallAggregate(string aggregate, params Expression[] args) {
-            Debug.Assert(args.Length > 0);
-            List<Type> types = new List<Type>();
-            types.AddRange(args.Select(e => e.Type));
-            var aggregateMethod = typeof(System.Linq.Enumerable).GetMethod(aggregate, types.ToArray());
-            if (aggregateMethod == null)
-            {
-                Type itemType;
-                if (types[0].GetGenericArguments().Length > 0)
-                {
-                    itemType = types[0].GetGenericArguments()[0];
-                }
-                else
-                {
-                    itemType = Expression.ArrayIndex(args[0], Expression.Constant(0)).Type;
-                }
-                types[0] = typeof(IEnumerable<>);
-                var aggregateOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), aggregate, types.ToArray());
-                aggregateMethod = aggregateOpenMethod.MakeGenericMethod(itemType);
-            }
-            return Expression.Call(aggregateMethod, args);
-        }
-
-        private Expression CallMath(string fn, params Expression[] args) {
-            var mathMethod = typeof(System.Math).GetMethod(fn, args.Select(x => x.Type).ToArray());
-            return Expression.Call(mathMethod, args);
-        }
 
         private Expression Cast(Expression arg0, Expression arg1) {
             #if false
@@ -572,14 +525,14 @@ namespace Predicate
                         rhs = Expression.Constant(0);
                         break;
                     case SymbolicValueType.LAST:
-                        rhs = Expression.Subtract(CallAggregate("Count", lhs), Expression.Constant(1));
+                        rhs = Expression.Subtract(Utils.CallAggregate("Count", lhs), Expression.Constant(1));
                         break;
                     case SymbolicValueType.SIZE:
-                        return CallAggregate("Count", lhs);
+                        return Utils.CallAggregate("Count", lhs);
                 }
             }
 
-            return CallAggregate("ElementAtOrDefault", lhs, rhs);
+            return Utils.CallAggregate("ElementAtOrDefault", lhs, rhs);
         }
 
         public override string Format
@@ -640,7 +593,7 @@ namespace Predicate
             Type arg1OpenType = typeof(Func<,>);
             Type arg1Type = arg1OpenType.MakeGenericType(new Type[] { itemType, typeof(Boolean) });
 
-            var whereOpenMethod = GetGenericMethod(typeof(System.Linq.Enumerable), "Where", new Type[] { arg0OpenType, arg1OpenType });
+            var whereOpenMethod = Utils.GetGenericMethod(typeof(System.Linq.Enumerable), "Where", new Type[] { arg0OpenType, arg1OpenType });
             var whereMethod = whereOpenMethod.MakeGenericMethod(new Type[] { itemType });
 
             var lambda = Expression.Lambda(arg1Type, p, new ParameterExpression[] { varExpr });

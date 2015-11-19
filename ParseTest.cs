@@ -1,6 +1,7 @@
 ﻿using NUnit.Framework;
 using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Predicate
 {
@@ -268,6 +269,43 @@ namespace Predicate
         {
             Assert.AreEqual(3, Expr.WithFormat("$a := 1+2").Value<int>());
         }
+
+        class C {
+            public string S { get; set; }
+        }
+
+        class B {
+            public IEnumerable<C> Collection { get; set; }
+        }
+
+        class A {
+            public B B { get; set; }
+        }
+
+        [Test]
+        public void TestKeyPathCollection()
+        {
+            C c0 = new C() { S = "Hello World" };
+            C c1 = new C() { S = "Goodbye Cruel World" };
+
+            B b = new B() { Collection = new C[] { c0, c1 } };
+
+            A a = new A() { B = b };
+
+
+            var any = Predicate.WithFormat("ANY B.Collection.S BEGINSWITH 'Hello'");
+            var all = Predicate.WithFormat("ALL B.Collection.S ENDSWITH 'World'");
+            var allFail = Predicate.WithFormat("ALL B.Collection.S BEGINSWITH 'Hello'");
+            var none = Predicate.WithFormat("NONE B.Collection.S BEGINSWITH 'Gday'");
+            var noneFail = Predicate.WithFormat("NONE B.Collection.S BEGINSWITH 'Hello'");
+
+            Assert.IsTrue(any.EvaluateObject(a));
+            Assert.IsTrue(all.EvaluateObject(a));
+            Assert.IsFalse(allFail.EvaluateObject(a));
+            Assert.IsTrue(none.EvaluateObject(a));
+            Assert.IsFalse(noneFail.EvaluateObject(a));
+        }
+            
     }
 }
 

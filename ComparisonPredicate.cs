@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using System.Diagnostics;
 
 namespace Predicate
 {
@@ -177,18 +178,8 @@ namespace Predicate
             }
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings) {
-            if (ComparisonPredicateModifier != ComparisonPredicateModifier.Direct)
-            {
-                // TODO: Rewrite the predicate as a subquery and return generate a LinqExpression on that instead.
-                // ANY toMany.x = 'foo' => SUBQUERY(toMany, $x, $x = 'foo').@count > 0
-                // ALL toMany.x = 'foo' => SUBQUERY(toMany, $x, $x = 'foo').@count = toMany.@count
-                throw new NotImplementedException();
-            }
-
-            Expression left = LeftExpression.LinqExpression(bindings);
-            Expression right = RightExpression.LinqExpression(bindings);
-
+        private Expression _LinqExpression(Expression left, Expression right)
+        {
             if (0 != (Options & ComparisonPredicateOptions.CaseInsensitive))
             {
                 left = Utils.CallSafe(left, "ToLower");
@@ -240,6 +231,35 @@ namespace Predicate
                     return Expression.AndAlso(Expression.GreaterThanOrEqual(left, lower), Expression.LessThanOrEqual(left, upper));
             }
             return null;
+        }
+
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings) {
+            Expression left = LeftExpression.LinqExpression(bindings);
+            Expression right = RightExpression.LinqExpression(bindings);
+
+            if (ComparisonPredicateModifier != ComparisonPredicateModifier.Direct)
+            {
+                ParameterExpression t = Expression.Parameter(Utils.ElementType(left.Type));
+                Expression filter = Expression.Lambda(_LinqExpression(t, right), new ParameterExpression[] { t });
+                if (ComparisonPredicateModifier == ComparisonPredicateModifier.All)
+                {
+                    Expression all = Utils.CallAggregate("All", left, filter);
+                    return all;
+                }
+                else if (ComparisonPredicateModifier == ComparisonPredicateModifier.Any)
+                {
+                    Expression any = Utils.CallAggregate("Any", left, filter);
+                    return any;
+                }
+                else
+                {
+                    throw new NotImplementedException($"Unhandled ComparisonPredicateModifier ${ComparisonPredicateModifier}");
+                }
+            }
+            else
+            {
+                return _LinqExpression(left, right);
+            }
         }
     }
 
