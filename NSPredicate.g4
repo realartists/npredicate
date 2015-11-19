@@ -1,4 +1,4 @@
-/*  Adapted from Apportable's NSPredicate lexer/parser (which is MIT licensed)
+/*  (Heavily) Adapted from Apportable's NSPredicate lexer/parser (which is MIT licensed)
     See here: https://github.com/apportable/Foundation
 */
 
@@ -55,15 +55,16 @@ operator_type
     ;
     
 expression
+    : '-' expression                # ExprUnaryMinus
     // binary
-    : expression '**' expression    # ExprPower
+    | expression '**' expression    # ExprPower
     | expression '*' expression     # ExprMult
     | expression '/' expression     # ExprDiv
     | expression '+' expression     # ExprAdd
     | expression '-' expression     # ExprSub
-    | '-' expression                # ExprUnaryMinus
     // --
     | expression '[' index ']'      # ExprIndex
+    | 'SUBQUERY' '(' expression ',' variable ',' predicate ')'    # ExprSubquery
     | IDENTIFIER '(' ')'            # ExprNoArgFunction
     | IDENTIFIER '(' expression_list ')'    # ExprArgFunction
     | variable ASSIGN expression            # ExprAssign
@@ -167,9 +168,9 @@ FORMAT
     ;
 
 
-NUMBER	:	'-'? INT '.' [0-9]+ EXP?
-		|	'-'? INT EXP
-		|	'-'? INT
+NUMBER	:	INT '.' [0-9]+ EXP?
+		|	INT EXP
+		|	INT
 		;
 
 fragment INT	:	'0' | [1-9][0-9]* ;

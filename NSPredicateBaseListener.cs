@@ -417,6 +417,18 @@ public partial class NSPredicateBaseListener : INSPredicateListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitExprParens([NotNull] NSPredicateParser.ExprParensContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="NSPredicateParser.ExprSubquery"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterExprSubquery([NotNull] NSPredicateParser.ExprSubqueryContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="NSPredicateParser.ExprSubquery"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitExprSubquery([NotNull] NSPredicateParser.ExprSubqueryContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="NSPredicateParser.ExprConstant"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>

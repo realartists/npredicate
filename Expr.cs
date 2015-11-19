@@ -17,6 +17,7 @@ namespace Predicate
         IntersectSetExpressionType, // Expression that returns the result of doing an intersectSet: on two expressions that evaluate to flat collections (arrays or sets)
         MinusSetExpressionType, // Expression that returns the result of doing a minusSet: on two expressions that evaluate to flat collections (arrays or sets)
         SymbolicValueExpressionType = 11,
+        VariableAssignmentExpressionType = 12,
         SubqueryExpressionType = 13,
         AggregateExpressionType = 14,
     }       
@@ -143,6 +144,10 @@ namespace Predicate
 
         public static Expr MakeSymbolic(SymbolicValueType symbolType) {
             return new SymbolicValueExpr(symbolType);
+        }
+
+        public static Expr MakeAssignment(string variable, Expr rhs) {
+            return new VariableAssignmentExpr(variable, rhs);
         }
 
         public Expression<Func<T, V>> LinqExpression<T, V>() {
@@ -434,6 +439,8 @@ namespace Predicate
                     return CallMath("Abs", arg0);
                 case "trunc:":
                     return CallMath("Truncate", arg0);
+                case "negate:":
+                    return Expression.Negate(arg0);
                 case "uppercase:":
                     return Utils.CallSafe(arg0, "ToUpper");
                 case "lowercase:":
@@ -449,7 +456,7 @@ namespace Predicate
                     return Expression.Call(randExpr, randN, arg0);
                 }
                 case "now": {
-                    var utcNow = typeof(DateTime).GetProperty("UtcNow", BindingFlags.Static);
+                    var utcNow = typeof(DateTime).GetProperty("UtcNow", BindingFlags.Static | BindingFlags.Public);
                     return Expression.Property(null, utcNow);
                 }
                 case "bitwiseAnd:with:":
@@ -668,7 +675,14 @@ namespace Predicate
             }
             Type listOpenType = typeof(List<>);
             Type listType = listOpenType.MakeGenericType(new Type[] { type });
-            return Expression.ListInit(Expression.New(listType), exprs);
+            if (exprs.Any())
+            {
+                return Expression.ListInit(Expression.New(listType), exprs);
+            }
+            else
+            {
+                return Expression.New(listType);
+            }
         }
 
         public override string Format
@@ -715,6 +729,34 @@ namespace Predicate
                         return "SIZE";
                 }
                 return null;
+            }
+        }
+    }
+
+    class VariableAssignmentExpr : Expr {
+        public VariableAssignmentExpr(string lhs, Expr rhs) {
+            Variable = lhs;
+            RightExpression = rhs;
+        }
+
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        {
+            var valueExpression = RightExpression.LinqExpression(bindings);
+            var variableExpression = Expression.Variable(valueExpression.Type, Variable);
+            bindings[Variable] = variableExpression;
+            var assignExpression = Expression.Assign(variableExpression, valueExpression);
+            Expression blockExpr = Expression.Block(
+                new ParameterExpression[] { variableExpression },
+                assignExpression
+            );
+            return blockExpr;
+        }
+
+        public override string Format
+        {
+            get
+            {
+                return $"${Variable} := ${RightExpression.Format}";
             }
         }
     }

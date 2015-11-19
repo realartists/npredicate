@@ -2,6 +2,8 @@
 using Antlr4.Runtime;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Antlr4.Runtime.Misc;
+using Antlr4.Runtime.Tree;
 
 namespace Predicate
 {
@@ -16,7 +18,7 @@ namespace Predicate
             this.FormatArguments = formatArgs;
         }
 
-        private dynamic _Parse(Action<NSPredicateParser> startRule) {
+        private dynamic _Parse(Func<NSPredicateParser, IParseTree> startRule) {
             // Figure out where all the positional arguments live in the input
             PositionalArgumentLocations.Clear();
             int positional = 0;
@@ -31,7 +33,7 @@ namespace Predicate
                 else if (state && (c == '@' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')))
                 {
                     state = false;
-                    PositionalArgumentLocations[positional] = i - 1;
+                    PositionalArgumentLocations[i - 1] = positional;
                     positional++;
                 }
             }
@@ -41,8 +43,8 @@ namespace Predicate
             NSPredicateLexer lexer = Lexer = new NSPredicateLexer(input);
             CommonTokenStream tokens = new CommonTokenStream(lexer);
             NSPredicateParser parser = Parser = new NSPredicateParser(tokens);
-            parser.AddParseListener(this);
-            startRule(parser);
+            IParseTree tree = startRule(parser);
+            ParseTreeWalker.Default.Walk(this, tree);
             return Stack.Pop();
         }
 
@@ -60,9 +62,74 @@ namespace Predicate
         private Stack<dynamic> Stack = new Stack<dynamic>();
         private Stack<PredicateOperatorType> Operators = new Stack<PredicateOperatorType>();
         private Stack<ComparisonPredicateOptions> ComparisonOptions = new Stack<ComparisonPredicateOptions>();
-        private int AggregateExpressionCount = 0;
+
+        // --- CompoundPredicate ---
+
+        public override void ExitPredicateAnd(NSPredicateParser.PredicateAndContext context)
+        {
+            Predicate rhs = Stack.Pop();
+            Predicate lhs = Stack.Pop();
+
+            Stack.Push(CompoundPredicate.And(new Predicate[] { lhs, rhs }));
+        }
+
+        public override void ExitPredicateOr(NSPredicateParser.PredicateOrContext context)
+        {
+            Predicate rhs = Stack.Pop();
+            Predicate lhs = Stack.Pop();
+
+            Stack.Push(CompoundPredicate.Or(new Predicate[] { lhs, rhs }));
+        }
+
+        public override void ExitPredicateNot(NSPredicateParser.PredicateNotContext context)
+        {
+            Predicate subpred = Stack.Pop();
+            Stack.Push(CompoundPredicate.Not(subpred));
+        }
+            
+
+        // --- PredicateTrue/False ---
+
+        public override void ExitPredicateTrue(NSPredicateParser.PredicateTrueContext context)
+        {
+            Stack.Push(Predicate.Constant(true));
+        }
+
+        public override void ExitPredicateFalse(NSPredicateParser.PredicateFalseContext context)
+        {
+            Stack.Push(Predicate.Constant(false));
+        }
 
         // --- ComparisonPredicate ---
+
+        public override void ExitComparisonPredicateNone(NSPredicateParser.ComparisonPredicateNoneContext context)
+        {
+            ComparisonPredicate pred = Stack.Pop();
+            var subpred = ComparisonPredicate.Comparison(pred.LeftExpression, pred.PredicateOperatorType, pred.RightExpression, ComparisonPredicateModifier.Any, pred.Options);
+            var not = CompoundPredicate.Not(subpred);
+            Stack.Push(not);
+        }
+
+        public override void ExitComparisonPredicateAll(NSPredicateParser.ComparisonPredicateAllContext context)
+        {
+            ComparisonPredicate pred = Stack.Pop();
+            var all = ComparisonPredicate.Comparison(pred.LeftExpression, pred.PredicateOperatorType, pred.RightExpression, ComparisonPredicateModifier.All, pred.Options);
+            Stack.Push(all);
+        }
+
+        public override void ExitComparisonPredicateAny(NSPredicateParser.ComparisonPredicateAnyContext context)
+        {
+            ComparisonPredicate pred = Stack.Pop();
+            var any = ComparisonPredicate.Comparison(pred.LeftExpression, pred.PredicateOperatorType, pred.RightExpression, ComparisonPredicateModifier.Any, pred.Options);
+            Stack.Push(any);
+        }
+
+        public override void ExitComparisonPredicateSome(NSPredicateParser.ComparisonPredicateSomeContext context)
+        {
+            ComparisonPredicate pred = Stack.Pop();
+            var any = ComparisonPredicate.Comparison(pred.LeftExpression, pred.PredicateOperatorType, pred.RightExpression, ComparisonPredicateModifier.Any, pred.Options);
+            Stack.Push(any);
+        }
 
         public override void ExitUnqualifiedComparisonPredicate(NSPredicateParser.UnqualifiedComparisonPredicateContext context)
         {
@@ -173,8 +240,8 @@ namespace Predicate
 //        : expression '**' expression    # ExprPower
         public override void ExitExprPower(NSPredicateParser.ExprPowerContext context)
         {
-            var lhs = Stack.Pop();
             var rhs = Stack.Pop();
+            var lhs = Stack.Pop();
 
             Stack.Push(Expr.MakeFunction("raise:toPower:", lhs, rhs));
         }
@@ -182,8 +249,8 @@ namespace Predicate
 //        | expression '*' expression     # ExprMult
         public override void ExitExprMult(NSPredicateParser.ExprMultContext context)
         {
-            var lhs = Stack.Pop();
             var rhs = Stack.Pop();
+            var lhs = Stack.Pop();
 
             Stack.Push(Expr.MakeFunction("multiply:by:", lhs, rhs));
         }
@@ -191,8 +258,8 @@ namespace Predicate
 //        | expression '/' expression     # ExprDiv
         public override void ExitExprDiv(NSPredicateParser.ExprDivContext context)
         {
-            var lhs = Stack.Pop();
             var rhs = Stack.Pop();
+            var lhs = Stack.Pop();
 
             Stack.Push(Expr.MakeFunction("divide:by:", lhs, rhs));
         }
@@ -200,8 +267,8 @@ namespace Predicate
 //        | expression '+' expression     # ExprAdd
         public override void ExitExprAdd(NSPredicateParser.ExprAddContext context)
         {
-            var lhs = Stack.Pop();
             var rhs = Stack.Pop();
+            var lhs = Stack.Pop();
 
             Stack.Push(Expr.MakeFunction("add:to:", rhs, lhs));
         }
@@ -209,8 +276,8 @@ namespace Predicate
 //        | expression '-' expression     # ExprSub
         public override void ExitExprSub(NSPredicateParser.ExprSubContext context)
         {
-            var lhs = Stack.Pop();
             var rhs = Stack.Pop();
+            var lhs = Stack.Pop();
 
             Stack.Push(Expr.MakeFunction("from:subtract:", lhs, rhs));
         }
@@ -220,7 +287,7 @@ namespace Predicate
         {
             var e = Stack.Pop();
 
-            Stack.Push(Expr.MakeFunction("from:subtract:", Expr.MakeConstant(0), e));
+            Stack.Push(Expr.MakeFunction("negate:", e));
         }
 
         public override void ExitExprIndex(NSPredicateParser.ExprIndexContext context)
@@ -250,9 +317,8 @@ namespace Predicate
 //        | expression '.' expression             # ExprKeypathBinaryExpressions
         public override void ExitExprKeypathBinaryExpressions(NSPredicateParser.ExprKeypathBinaryExpressionsContext context)
         {
-            
-            Expr lhs = Stack.Pop();
             Expr rhs = Stack.Pop();
+            Expr lhs = Stack.Pop();
 
             if (!(rhs is KeyPathExpr)) {
                 throw new Antlr4.Runtime.RecognitionException(
@@ -271,6 +337,67 @@ namespace Predicate
             }
         }
 
+        //        | 'SUBQUERY' '(' expression ',' variable ',' predicate ')'    # ExprSubquery
+
+        public override void ExitExprSubquery([NotNull] NSPredicateParser.ExprSubqueryContext context)
+        {
+            var subpredicate = Stack.Pop();
+            var variable = Stack.Pop();
+            var collection = Stack.Pop();
+
+            Stack.Push(Expr.MakeSubquery(collection, variable.Variable, subpredicate));
+        }
+
+        //        | IDENTIFIER '(' ')'            # ExprNoArgFunction
+        public override void ExitExprNoArgFunction(NSPredicateParser.ExprNoArgFunctionContext context)
+        {
+            string fn = context.IDENTIFIER().GetText().ToLower();
+            Stack.Push(Expr.MakeFunction(fn));
+        }
+
+        class FunctionArgSentinel { }
+
+        //        | IDENTIFIER '(' expression_list ')'    # ExprArgFunction
+        public override void EnterExprArgFunction(NSPredicateParser.ExprArgFunctionContext context)
+        {
+            Stack.Push(new FunctionArgSentinel());
+        }
+
+        public override void ExitExprArgFunction([NotNull] NSPredicateParser.ExprArgFunctionContext context)
+        {
+            var fn = context.IDENTIFIER().GetText().ToLower() + ":";
+            var args = new List<Expr>();
+            do
+            {
+                var expr = Stack.Pop();
+                if (expr is Expr)
+                {
+                    args.Insert(0, expr);
+                }
+                else
+                {
+                    break;
+                }
+            } while (true);
+
+            // Handle FUNCTION("a:b:", a, b) syntax
+            if (fn == "function:")
+            {
+                fn = args[0].ConstantValue as string;
+                args.RemoveAt(0);
+            }
+
+            Stack.Push(Expr.MakeFunction(fn, args));
+        }
+
+//        | variable ASSIGN expression            # ExprAssign
+        public override void ExitExprAssign(NSPredicateParser.ExprAssignContext context) 
+        {
+            Expr value = Stack.Pop();
+            Expr name = Stack.Pop();
+
+            Stack.Push(Expr.MakeAssignment(name.Variable, value));
+        }
 
         // --- ConstantExprs ---
         public override void ExitValueEmptyAggregate(NSPredicateParser.ValueEmptyAggregateContext context)
@@ -278,26 +405,36 @@ namespace Predicate
             Stack.Push(Expr.MakeAggregate(new Expr[] { }));
         }
 
+        private class AggregateSentinel { }
+
         public override void ExitValueAggregate(NSPredicateParser.ValueAggregateContext context)
         {
             var exprs = new List<Expr>();
-            while (AggregateExpressionCount > 0)
+            do
             {
-                exprs.Insert(0, Stack.Pop());
-                AggregateExpressionCount--;
-            }
-
+                var expr = Stack.Pop();
+                if (expr is Expr)
+                {
+                    exprs.Insert(0, expr);
+                } else
+                {
+                    Debug.Assert(expr is AggregateSentinel);
+                    break;
+                }
+            } while (true);
+            
             Stack.Push(Expr.MakeAggregate(exprs));
         }
 
-        public override void ExitExprListSingle(NSPredicateParser.ExprListSingleContext context) 
+        public override void EnterValueAggregate([NotNull] NSPredicateParser.ValueAggregateContext context)
         {
-            AggregateExpressionCount++;
+            Stack.Push(new AggregateSentinel());
         }
 
-        public override void ExitExprListAccum(NSPredicateParser.ExprListAccumContext context)
+        public override void ExitVariable([NotNull] NSPredicateParser.VariableContext context)
         {
-            AggregateExpressionCount++;
+            var identifier = "$" + context.IDENTIFIER().GetText();
+            Stack.Push(Expr.MakeVariable(identifier));
         }
 
         public override void ExitValueString(NSPredicateParser.ValueStringContext context)
@@ -345,6 +482,21 @@ namespace Predicate
             Stack.Push(Expr.MakeEvaluatedObject());
         }
 
+        public override void ExitValueNull(NSPredicateParser.ValueNullContext context)
+        {
+            Stack.Push(Expr.MakeConstant(null));
+        }
+
+        public override void ExitValueTrue(NSPredicateParser.ValueTrueContext context)
+        {
+            Stack.Push(Expr.MakeConstant(true));
+        }
+
+        public override void ExitValueFalse(NSPredicateParser.ValueFalseContext context)
+        {
+            Stack.Push(Expr.MakeConstant(false));
+        }
+
         // --- INDEX ---
         public override void ExitIndexFirst(NSPredicateParser.IndexFirstContext context)
         {
@@ -361,7 +513,7 @@ namespace Predicate
             Stack.Push(Expr.MakeSymbolic(SymbolicValueType.SIZE));
         }
 
-
+        
     }
 }
 

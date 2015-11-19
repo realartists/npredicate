@@ -413,6 +413,18 @@ public interface INSPredicateListener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitExprParens([NotNull] NSPredicateParser.ExprParensContext context);
 	/// <summary>
+	/// Enter a parse tree produced by the <c>ExprSubquery</c>
+	/// labeled alternative in <see cref="NSPredicateParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterExprSubquery([NotNull] NSPredicateParser.ExprSubqueryContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>ExprSubquery</c>
+	/// labeled alternative in <see cref="NSPredicateParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitExprSubquery([NotNull] NSPredicateParser.ExprSubqueryContext context);
+	/// <summary>
 	/// Enter a parse tree produced by the <c>ExprConstant</c>
 	/// labeled alternative in <see cref="NSPredicateParser.expression"/>.
 	/// </summary>
