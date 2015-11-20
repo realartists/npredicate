@@ -2,7 +2,7 @@
 using System.Linq.Expressions;
 using System.Collections.Generic;
 
-namespace Predicate
+namespace NPredicate
 {
     public class ConstantPredicate : Predicate
     {

@@ -5,8 +5,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{74405646-231C-4248-A7F0-CEC090E0FD39}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Predicate</RootNamespace>
-    <AssemblyName>Predicate</AssemblyName>
+    <RootNamespace>NPredicate</RootNamespace>
+    <AssemblyName>NPredicate</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">

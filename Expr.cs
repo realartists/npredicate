@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Data.Entity;
 
-namespace Predicate
+namespace NPredicate
 {
     public enum ExpressionType {
         ConstantValueExpressionType = 0, // Expression that always returns the same value

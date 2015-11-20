@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Data.Entity;
 
-namespace Predicate
+namespace NPredicate
 {
     class Utils {
 

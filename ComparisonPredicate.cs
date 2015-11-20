@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
 
-namespace Predicate
+namespace NPredicate
 {
     [Flags]
     public enum ComparisonPredicateOptions {

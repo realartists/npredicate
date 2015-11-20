@@ -10,7 +10,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 // No SQL Server to connect to for these tests on the Mac side.
 #if !__MonoCS__
 
-namespace Predicate
+namespace NPredicate
 {
     public class TestEFUser {
         public int Id { get; set; }

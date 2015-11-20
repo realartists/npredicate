@@ -6,7 +6,7 @@ using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 using System.Linq;
 
-namespace Predicate
+namespace NPredicate
 {
     public class PredicateParser : NSPredicateBaseListener
     {

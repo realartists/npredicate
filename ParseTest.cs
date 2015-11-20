@@ -3,7 +3,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
-namespace Predicate
+namespace NPredicate
 {
     [TestFixture ()]
     public class ParseTest
