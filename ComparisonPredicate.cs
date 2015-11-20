@@ -171,7 +171,7 @@ namespace Predicate
 
                 if (opts.Length > 0)
                 {
-                    op += $"[${opts}]";
+                    op += $"[{opts}]";
                 }
 
                 return "(" + LeftExpression.Format + " " + op + " " + RightExpression.Format + ")";
@@ -253,7 +253,7 @@ namespace Predicate
                 }
                 else
                 {
-                    throw new NotImplementedException($"Unhandled ComparisonPredicateModifier ${ComparisonPredicateModifier}");
+                    throw new NotImplementedException($"Unhandled ComparisonPredicateModifier {ComparisonPredicateModifier}");
                 }
             }
             else

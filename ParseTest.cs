@@ -305,6 +305,29 @@ namespace Predicate
             Assert.IsTrue(none.EvaluateObject(a));
             Assert.IsFalse(noneFail.EvaluateObject(a));
         }
+
+        [Test]
+        public void TestCastStringToNumber()
+        {
+            var e = Expr.Parse("CAST('123.0', 'NSNumber')");
+            Assert.AreEqual(123.0, e.Value<double>());
+        }
+
+        [Test]
+        public void TestCastDate()
+        {
+            var e = Expr.Parse("CAST(CAST(now(), 'NSNumber'), 'NSDate')");
+            DateTime dt = e.Value<DateTime>();
+            Assert.IsTrue((DateTime.UtcNow - dt).TotalSeconds < 1.0);
+        }
+
+        [Test]
+        public void TestDateArithmetic()
+        {
+            var e = Expr.Parse("FUNCTION(now(), 'dateByAddingDays:', -2)");
+            DateTime dt = e.Value<DateTime>();
+            Assert.IsTrue(Math.Abs((DateTime.UtcNow.AddDays(-2) - dt).TotalSeconds) < 1.0);
+        }
             
     }
 }

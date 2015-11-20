@@ -56,7 +56,7 @@ namespace Predicate
                     case CompoundPredicateType.Or:
                         return "(" + String.Join(" OR ", Subpredicates) + ")";
 				    case CompoundPredicateType.Not:
-					    return "NOT (${subpredicates.First().Format})";
+					    return $"NOT ({Subpredicates.First().Format})";
 				}
 				return "";
 			}

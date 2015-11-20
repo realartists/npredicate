@@ -32,7 +32,7 @@ namespace Predicate
 
             } else
             {
-                throw new NotImplementedException($"Unknown dialect ${dialect}");
+                throw new NotImplementedException($"Unknown dialect {dialect}");
             }
         }
 
@@ -130,6 +130,97 @@ namespace Predicate
             where parameterTypes.SequenceEqual(ParameterTypeProjection(method))
             select method).SingleOrDefault();
 #endif
+        }
+
+        public static bool IsTypeNumeric(Type type)
+        {
+            switch (Type.GetTypeCode(type))
+            {
+                case TypeCode.Byte:
+                case TypeCode.SByte:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                case TypeCode.UInt64:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.Int64:
+                case TypeCode.Decimal:
+                case TypeCode.Double:
+                case TypeCode.Single:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static DateTime GetReferenceDate()
+        {
+            DateTime reference = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return reference;
+        }
+
+        public static double TimeIntervalSinceReferenceDate(DateTime dateTime)
+        {
+            var reference = GetReferenceDate();
+            var span = dateTime - reference;
+            return span.TotalSeconds;
+        }
+
+        public static DateTime DateTimeFromTimeIntervalSinceReferenceDate(double timeInterval)
+        {
+            var reference = GetReferenceDate();
+            var span = TimeSpan.FromSeconds(timeInterval);
+            var dateTime = reference + span;
+            return dateTime;
+        }
+
+        public static Expression AsDouble(Expression a)
+        {
+            if (a.Type == typeof(double))
+            {
+                return a;
+            } else
+            {
+                return Expression.Convert(a, typeof(double));
+            }
+        }
+
+        public static Expression AsInt(Expression a)
+        {
+            if (a.Type == typeof(int))
+            {
+                return a;
+            } else
+            {
+                return Expression.Convert(a, typeof(int));
+            }
+        }
+
+        public static Expression AsNullable(Expression a)
+        {
+            if (a.Type.IsByRef)
+            {
+                return a;
+            } else if (a.Type.IsGenericType && a.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                return a;
+            } else
+            {
+                var type = typeof(Nullable<>).MakeGenericType(a.Type);
+                return Expression.Convert(a, type);
+            }
+        }
+
+        public static Expression AsNotNullable(Expression a)
+        {
+            if (a.Type.IsGenericType && a.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                var type = a.Type.GetGenericArguments()[0];
+                return Expression.Convert(a, type); 
+            } else
+            {
+                return a;
+            }
         }
     }
 }

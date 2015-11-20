@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Diagnostics;
+using System.Data.Entity;
 
 namespace Predicate
 {
@@ -335,7 +336,7 @@ namespace Predicate
             this.Function = function;
             this.Arguments = arguments;
         }
-            
+
         // Expression that invokes one of the predefined functions. Will throw immediately if the selector is bad; will throw at runtime if the parameters are incorrect.
         // Predefined functions are:
         // name              parameter array contents               returns
@@ -378,13 +379,26 @@ namespace Predicate
         //                   two NSExpression instances representing CLLocations    NSNumber
         // length:           an NSExpression instance representing a string         NSNumber
 
+
+        // --------- --------- --------- --------- --------- --------- ---------
+        // Additionally, Ship defines the following functions for date math
+        // --------- --------- --------- --------- --------- --------- ---------
+        //
+        // - (NSDate*)dateByAddingSeconds:(NSNumber*)seconds;
+        // - (NSDate*)dateByAddingMinutes:(NSNumber*)minutes;
+        // - (NSDate*)dateByAddingHours:(NSNumber*)hours;
+        // - (NSDate*)dateByAddingDays:(NSNumber*)days;
+        // - (NSDate*)dateByAddingMonths:(NSNumber*)months;
+        // - (NSDate*)dateByAddingYears:(NSNumber*)years;
+        //
+
         public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             var argumentExpressions = Arguments.Select(a => a.LinqExpression(bindings, dialect));
             var arg0 = argumentExpressions.FirstOrDefault();
             var arg1 = argumentExpressions.ElementAtOrDefault(1);
 
-            switch (Function) {
+            switch (Function.ToLower()) {
                 case "sum:":
                     return Utils.CallAggregate("Sum", arg0);
                 case "count:":
@@ -417,7 +431,7 @@ namespace Predicate
                     return Utils.CallMath("Log10", arg0);
                 case "ln:":
                     return Utils.CallMath("Log", arg0);
-                case "raise:toPower:":
+                case "raise:topower:":
                     return Expression.Power(arg0, arg1);
                 case "exp:":
                     return Expression.Power(Expression.Constant(Math.E), arg0);
@@ -449,79 +463,123 @@ namespace Predicate
                     var utcNow = typeof(DateTime).GetProperty("UtcNow", BindingFlags.Static | BindingFlags.Public);
                     return Expression.Property(null, utcNow);
                 }
-                case "bitwiseAnd:with:":
+                case "bitwiseand:with:":
                     return Expression.And(arg0, arg1);
-                case "bitwiseOr:with:":
+                case "bitwiseor:with:":
                     return Expression.Or(arg0, arg1);
-                case "bitwiseXor:with:":
+                case "bitwisexor:with:":
                     return Expression.ExclusiveOr(arg0, arg1);
                 case "leftshift:by:":
                     return Expression.LeftShift(arg0, arg1);
                 case "rightshift:by:":
                     return Expression.RightShift(arg0, arg1);
-                case "onesComplement:":
+                case "onescomplement:":
                     return Expression.OnesComplement(arg0);
                 case "length:":
                     return Utils.CallSafe(dialect, arg0, "Length");
-                case "cast:to:":
-                    return Cast(arg0, arg1);
-                case "objectFrom:withIndex:":
+                case "castobject:totype:":
+                    return Cast(arg0, arg1, dialect);
+                case "objectfrom:withindex:":
                     return GetObjectAtIndex(arg0, arg1, bindings);
+                case "addseconds:":
+                case "datebyaddingseconds:":
+                    return DateFunction("AddSeconds", arg0, arg1, dialect);
+                case "addminutes:":
+                case "datebyaddingminutes:":
+                    return DateFunction("AddMinutes", arg0, arg1, dialect);
+                case "addhours:":
+                case "datebyaddinghours:":
+                    return DateFunction("AddHours", arg0, arg1, dialect);
+                case "adddays:":
+                case "datebyaddingdays:":
+                    return DateFunction("AddDays", arg0, arg1, dialect);
+                case "addmonths:":
+                case "datebyaddingmonths:":
+                    return DateFunction("AddMonths", arg0, arg1, dialect);
+                case "addyears:":
+                case "datebyaddingyears:":
+                    return DateFunction("AddYears", arg0, arg1, dialect);
             }
-            throw new NotImplementedException($"${Function} not implemented");
+            throw new NotImplementedException($"{Function} not implemented");
         }
 
         static Random Rand = new Random();
 
-        private Expression Cast(Expression arg0, Expression arg1) {
-#if false
-            var destType = (Arguments.ElementAt(1) as ConstantExpr)?.ConstantValue;
-
-            if (destType != "NSNumber" || destType != "NSDate")
+        private Expression DateFunction(string name, Expression arg0, Expression arg1, LinqDialect dialect)
+        {
+            if (dialect == LinqDialect.Objects)
             {
-                throw new NotImplementedException($"Cannot cast to any type except for NSDate or NSNumber, but got ${Arguments.ElementAt(1).Format}");
+                return Expression.Call(arg0, name, null, Utils.AsDouble(arg1));
+            } else
+            {
+                var method = typeof(DbFunctions).GetMethod(name, new Type[] { typeof(DateTime?), typeof(int?) });
+                return Utils.AsNotNullable(Expression.Call(method, Utils.AsNullable(arg0), Utils.AsNullable(Utils.AsInt(arg1))));
+            }
+        }
+
+        private Expression Cast(Expression arg0, Expression arg1, LinqDialect dialect) {
+            var destType = (Arguments.ElementAt(1) as ConstantExpr)?.ConstantValue as string;
+
+            if (destType != "NSNumber" && destType != "NSDate" && destType != "NSString")
+            {
+                throw new NotImplementedException($"Cannot cast to any type except for NSDate, NSString or NSNumber, but got {Arguments.ElementAt(1).Format}");
             }
 
-            if (destType == "NSNumber")
-            {
-                // Can convert the following types to numbers
-                // string, date
-
-                if (arg0.Type == typeof(string))
-                {
-
-                }
-                else if (arg0.Type == typeof(DateTime))
-                {
-
-                }
-                else
-                {
-                    throw new NotImplementedException($"Cannot cast ${arg0.Type} to NSNumber");
-                }
+            if (dialect == LinqDialect.EntityFramework) {
+                return CastEntities(arg0, destType);
+            } else {
+                return CastObjects(arg0, destType);
             }
-            else if (destType == "NSDate")
+        }
+
+        private Expression CastObjects(Expression arg0, string type) {
+            var argType = arg0.Type;
+            if (type == "NSNumber") {
+                if (argType == typeof(string)) {
+                    var parseMethod = typeof(double).GetMethod("Parse", new Type[] { typeof(string) });
+                    return Expression.Call(parseMethod, arg0);
+                } else if (Utils.IsTypeNumeric(argType))
+                {
+                    return arg0;
+                } else if (argType == typeof(bool))
+                {
+                    return Expression.Condition(arg0, Expression.Constant(1), Expression.Constant(0));
+                } else if (argType == typeof(DateTime))
+                {
+                    var castMethod = typeof(Utils).GetMethod("TimeIntervalSinceReferenceDate", new Type[] { typeof(DateTime) });
+                    return Expression.Call(castMethod, arg0);
+                } else
+                {
+                    throw new NotSupportedException($"Cannot cast type {argType} to NSNumber");
+                }
+            } else if (type == "NSString")
             {
-                // Can convert strings and doubles to dates
-                if (arg0.Type == typeof(string))
+                return Expression.Call(arg0, "ToString", null, null);
+            } else if (type == "NSDate")
+            {
+                if (argType == typeof(string))
                 {
                     var parseMethod = typeof(DateTime).GetMethod("Parse", new Type[] { typeof(string) });
-                    return Expression.Call(null, parseMethod, arg0);
-                } else if (arg0.Type == typeof(double)) {
-                    // get seconds and millis
-                    var secondsExpr = Expr.MakeFunction("floor:", Arguments.First()).LinqExpression(bindings);
-                    var millisExpr = Expr.MakeFunction("from:subtract:", Arguments.First(), Expr.MakeFunction("floor:", Arguments.First())).LinqExpression(bindings);
-
+                    return Expression.Call(parseMethod, arg0);
                 }
-
+                else if (argType == typeof(double))
+                {
+                    var castMethod = typeof(Utils).GetMethod("DateTimeFromTimeIntervalSinceReferenceDate", new Type[] { typeof(double) });
+                    return Expression.Call(castMethod, arg0);
+                } else if (argType == typeof(DateTime))
+                {
+                    return arg0;
+                } else
+                {
+                    throw new NotSupportedException($"Cannot cast Type {argType} to NSDate");
+                }
             }
-            else
-            {
-                Debug.Assert(false);
-            }
-#endif
 
             return null;
+        }
+
+        private Expression CastEntities(Expression arg0, string type) {
+            throw new NotSupportedException($"Cannot emit linq for {Format}. Casting is not supported in Linq to Entities.");
         }
 
         private Expression GetObjectAtIndex(Expression lhs, Expression rhs, Dictionary<string, ParameterExpression> bindings) {
@@ -547,7 +605,24 @@ namespace Predicate
         public override string Format
         {
             get {
-                throw new NotImplementedException();
+                int colons = 0;
+                foreach (char c in Function.ToCharArray())
+                {
+                    if (c == ':') colons++;
+                }
+
+                if (Arguments.Count() == 0)
+                {
+                    return $"{Function}()";
+                } else if (Arguments.Count() == 2 && colons == 1)
+                {
+                    var arg0 = Arguments.ElementAt(0);
+                    var arg1 = Arguments.ElementAt(1);
+                    return $"FUNCTION({arg0.Format}, '{Function}', {arg1.Format})";
+                } else
+                {
+                    return $"FUNCTION('{Function}', {String.Join(", ", Arguments.Select(a => a.Format))})";
+                }
             }
         }
     }
@@ -614,7 +689,7 @@ namespace Predicate
         public override string Format
         {
             get {
-                return $"SUBQUERY(${Collection.Format}, ${Variable}, ${Predicate}";
+                return $"SUBQUERY({Collection.Format}, {Variable}, {Predicate}";
             }
         }
     }
@@ -718,7 +793,7 @@ namespace Predicate
         {
             get
             {
-                return $"${Variable} := ${RightExpression.Format}";
+                return $"{Variable} := {RightExpression.Format}";
             }
         }
     }

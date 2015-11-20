@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
+using System.Linq;
 
 namespace Predicate
 {
@@ -322,7 +323,7 @@ namespace Predicate
 
             if (!(rhs is KeyPathExpr)) {
                 throw new Antlr4.Runtime.RecognitionException(
-                    $"Expression to the right of '.' must be a key path expression (instead saw ${lhs.Format} '.' ${rhs.Format})",
+                    $"Expression to the right of '.' must be a key path expression (instead saw {lhs.Format} '.' {rhs.Format})",
                     Parser, Lexer.InputStream, context
                 );
             }
@@ -383,8 +384,31 @@ namespace Predicate
             // Handle FUNCTION("a:b:", a, b) syntax
             if (fn == "function:")
             {
-                fn = args[0].ConstantValue as string;
-                args.RemoveAt(0);
+                // The function name is the first constant valued expression that is a string we encounter in the args
+                // either at position 0 or position 1.
+                // For example, it could be that we have FUNCTION("sum:", { 1, 2, 3 })
+                // But on the other hand it could be that we have FUNCTION(now(), "dateByAddingDays:", -2)
+                if (args[0] is ConstantExpr && args[0].ConstantValue is string)
+                {
+                    fn = args[0].ConstantValue as string;
+                    args.RemoveAt(0);
+                } else if (args[1] is ConstantExpr && args[1].ConstantValue is string)
+                {
+                    fn = args[1].ConstantValue as string;
+                    args.RemoveAt(1);
+                } else
+                {
+                    var formats = String.Join(", ", args.Select(a => a.Format));
+                    throw new Antlr4.Runtime.RecognitionException(
+                        $"Cannot find function to call amongst {formats}",
+                        Parser, Lexer.InputStream, context
+                    );
+                }
+            }
+
+            if (fn == "cast:")
+            {
+                fn = "castObject:toType:";
             }
 
             Stack.Push(Expr.MakeFunction(fn, args));

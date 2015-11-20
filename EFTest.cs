@@ -4,8 +4,10 @@ using System.Linq;
 using System.Data.Entity;
 using System.Data.Common;
 using System.Data.Entity.Migrations;
+using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
-// The Effort stuff doesn't seem to work on Mono :(
+// No SQL Server to connect to for these tests on the Mac side.
 #if !__MonoCS__
 
 namespace Predicate
@@ -19,12 +21,20 @@ namespace Predicate
         public TestEFDocument()
         {
             Watchers = new HashSet<TestEFUser>();
+            CreationDate = DateTime.UtcNow;
+            ModificationDate = DateTime.UtcNow;
         }
 
         public int Id { get; set; }
         public string Content { get; set; }
         public virtual ICollection<TestEFUser> Watchers { get; set; }
         public TestEFUser Author { get; set; }
+
+        [Column(TypeName = "DateTime2")]
+        public DateTime ModificationDate { get; set; }
+
+        [Column(TypeName = "DateTime2")]
+        public DateTime CreationDate { get; set; }
     }
 
     public class TestEFContext : DbContext {
@@ -62,6 +72,8 @@ namespace Predicate
                 var doc1 = ctx.Documents.Add(new TestEFDocument() { Content = "Hello World" });
                 doc1.Watchers.Add(james);
                 doc1.Watchers.Add(nick);
+                doc1.CreationDate = DateTime.UtcNow.AddDays(-3);
+                doc1.ModificationDate = DateTime.UtcNow.AddDays(-2);
 
                 ctx.Documents.Add(new TestEFDocument() { Content = "Goodbye Cruel World" });
 
@@ -181,6 +193,32 @@ namespace Predicate
             {
                 var predicate = Predicate.Parse("Author.Name == 'James Howard'");
                 Assert.IsFalse(ctx.Documents.Where(predicate).Any());
+            }
+        }
+
+        [Test]
+        public void TestDateComparison()
+        {
+            using (var ctx = new TestEFContext())
+            {
+                var nope = Predicate.Parse("CreationDate > ModificationDate");
+                var yep = Predicate.Parse("CreationDate < ModificationDate");
+
+                Assert.IsFalse(ctx.Documents.Where(nope).Any());
+                Assert.IsTrue(ctx.Documents.Where(yep).Any());
+            }
+        }
+
+        [Test]
+        public void TestDateArithmetic()
+        {
+            using (var ctx = new TestEFContext())
+            {
+                var nope = Predicate.Parse("CreationDate < FUNCTION(now(), 'dateByAddingDays:', -4)");
+                var yep = Predicate.Parse("CreationDate < FUNCTION(now(), 'dateByAddingDays:', -2)");
+
+                Assert.IsFalse(ctx.Documents.Where(nope).Any());
+                Assert.IsTrue(ctx.Documents.Where(yep).Any());
             }
         }
     }
