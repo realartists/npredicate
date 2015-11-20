@@ -150,11 +150,11 @@ namespace Predicate
             return new VariableAssignmentExpr(variable, rhs);
         }
 
-        public Expression<Func<T, V>> LinqExpression<T, V>() {
+        public Expression<Func<T, V>> LinqExpression<T, V>(LinqDialect dialect = LinqDialect.Objects) {
             var bindings = new Dictionary<string, ParameterExpression>();
             ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
             bindings.Add(self.Name, self);
-            return Expression.Lambda<Func<T, V>>(LinqExpression(bindings), self);
+            return Expression.Lambda<Func<T, V>>(LinqExpression(bindings, dialect), self);
         }
 
         public V ValueWithObject<T,V>(T obj) {
@@ -167,7 +167,7 @@ namespace Predicate
             return ValueWithObject<dynamic, V>(null);
         }
 
-        public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings);
+        public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect);
 
         public abstract string Format { get; }
 
@@ -185,7 +185,7 @@ namespace Predicate
             ConstantValue = value;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             return Expression.Constant(ConstantValue);
         }
@@ -210,7 +210,7 @@ namespace Predicate
             ExpressionType = ExpressionType.EvaluatedObjectExpressionType;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             return bindings["SELF"];
         }
@@ -229,7 +229,7 @@ namespace Predicate
             this.Variable = variable;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             return bindings[Variable];
         }
@@ -255,10 +255,10 @@ namespace Predicate
             this.KeyPath = keyPath;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             string[] keys = KeyPath.Split('.');
-            Expression result = Operand != null ? Operand.LinqExpression(bindings) : bindings["SELF"];
+            Expression result = Operand != null ? Operand.LinqExpression(bindings, dialect) : bindings["SELF"];
             foreach (string key in keys) {
                 if (key.ToLower() == "self") {
                     continue;
@@ -305,13 +305,17 @@ namespace Predicate
                     propertyExpr = Expression.Property(result, key);
                 }
 
-                var defaultSource = Expression.Default(result.Type);
-                var defaultResult = Expression.Default(propertyExpr.Type);
+                if (dialect == LinqDialect.Objects)
+                {
+                    var defaultSource = Expression.Default(result.Type);
+                    var defaultResult = Expression.Default(propertyExpr.Type);
 
-                var isNilExpr = Expression.Equal(result, defaultSource);
-                var conditionExpr = Expression.Condition(isNilExpr, defaultResult, propertyExpr);
-
-                result = conditionExpr;
+                    var isNilExpr = Expression.Equal(result, defaultSource);
+                    var conditionExpr = Expression.Condition(isNilExpr, defaultResult, propertyExpr);
+                    result = conditionExpr;
+                } else {
+                    result = propertyExpr;
+                }
             }
 
             return result;
@@ -374,9 +378,9 @@ namespace Predicate
         //                   two NSExpression instances representing CLLocations    NSNumber
         // length:           an NSExpression instance representing a string         NSNumber
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
-            var argumentExpressions = Arguments.Select(a => a.LinqExpression(bindings));
+            var argumentExpressions = Arguments.Select(a => a.LinqExpression(bindings, dialect));
             var arg0 = argumentExpressions.FirstOrDefault();
             var arg1 = argumentExpressions.ElementAtOrDefault(1);
 
@@ -428,9 +432,9 @@ namespace Predicate
                 case "negate:":
                     return Expression.Negate(arg0);
                 case "uppercase:":
-                    return Utils.CallSafe(arg0, "ToUpper");
+                    return Utils.CallSafe(dialect, arg0, "ToUpper");
                 case "lowercase:":
-                    return Utils.CallSafe(arg0, "ToLower");
+                    return Utils.CallSafe(dialect, arg0, "ToLower");
                 case "random": {
                     var randExpr = Expression.Constant(Rand);
                     var randInt = typeof(Random).GetMethod("Next", new Type[] { });
@@ -458,7 +462,7 @@ namespace Predicate
                 case "onesComplement:":
                     return Expression.OnesComplement(arg0);
                 case "length:":
-                    return Utils.CallSafe(arg0, "Length");
+                    return Utils.CallSafe(dialect, arg0, "Length");
                 case "cast:to:":
                     return Cast(arg0, arg1);
                 case "objectFrom:withIndex:":
@@ -470,7 +474,7 @@ namespace Predicate
         static Random Rand = new Random();
 
         private Expression Cast(Expression arg0, Expression arg1) {
-            #if false
+#if false
             var destType = (Arguments.ElementAt(1) as ConstantExpr)?.ConstantValue;
 
             if (destType != "NSNumber" || destType != "NSDate")
@@ -515,7 +519,7 @@ namespace Predicate
             {
                 Debug.Assert(false);
             }
-            #endif
+#endif
 
             return null;
         }
@@ -550,7 +554,7 @@ namespace Predicate
 
 
     class SetExpr : Expr {
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             throw new NotImplementedException();
         }
@@ -571,12 +575,12 @@ namespace Predicate
             this.Predicate = predicate;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             // Generate code for
             // collection.Where(variable => predicate)
 
-            var collectionExpression = Collection.LinqExpression(bindings);
+            var collectionExpression = Collection.LinqExpression(bindings, dialect);
             Type itemType = null;
             if (collectionExpression.Type.IsSubclassOf(typeof(Array))) 
             {
@@ -590,7 +594,7 @@ namespace Predicate
             ParameterExpression varExpr = Expression.Parameter(itemType, Variable);
             var subBindings = new Dictionary<string, ParameterExpression>(bindings);
             subBindings[Variable] = varExpr;
-            var p = Predicate.LinqExpression(subBindings);
+            var p = Predicate.LinqExpression(subBindings, dialect);
 
             Type arg0OpenType = typeof(IEnumerable<>);
             //Type arg0Type = arg0OpenType.MakeGenericType(new Type[] { itemType });
@@ -621,13 +625,13 @@ namespace Predicate
             this.Arguments = components;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             var exprs = new List<Expression>();
             Type type = typeof(object);
             foreach (var e in Arguments)
             {
-                var l = e.LinqExpression(bindings);
+                var l = e.LinqExpression(bindings, dialect);
                 type = l.Type;
                 exprs.Add(l);
             }
@@ -666,7 +670,7 @@ namespace Predicate
             SymbolType = symbolType;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             // SymbolicValueExpr is special. It needs to know about what it's being called on to do anything useful.
             // See FunctionExpr objectFrom:withIndex:
@@ -697,9 +701,9 @@ namespace Predicate
             RightExpression = rhs;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
-            var valueExpression = RightExpression.LinqExpression(bindings);
+            var valueExpression = RightExpression.LinqExpression(bindings, dialect);
             var variableExpression = Expression.Variable(valueExpression.Type, Variable);
             bindings[Variable] = variableExpression;
             var assignExpression = Expression.Assign(variableExpression, valueExpression);

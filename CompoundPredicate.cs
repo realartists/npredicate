@@ -62,47 +62,47 @@ namespace Predicate
 			}
 		}
 
-        private Expression GenerateAnd(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates) {
+        private Expression GenerateAnd(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates, LinqDialect dialect) {
 			if (predicates.Count() > 2) {
-                Expression a = predicates.First().LinqExpression(bindings);
-                Expression b = GenerateAnd(bindings, predicates.Skip(1));
+                Expression a = predicates.First().LinqExpression(bindings, dialect);
+                Expression b = GenerateAnd(bindings, predicates.Skip(1), dialect);
 				return Expression.AndAlso (a, b);
 			} else if (predicates.Count() == 2) {
-                Expression a = predicates.First().LinqExpression(bindings);
-                Expression b = predicates.Last().LinqExpression(bindings);
+                Expression a = predicates.First().LinqExpression(bindings, dialect);
+                Expression b = predicates.Last().LinqExpression(bindings, dialect);
 				return Expression.AndAlso(a, b);
 			} else if (predicates.Count() == 1) {
-				return predicates.First().LinqExpression(bindings);
+				return predicates.First().LinqExpression(bindings, dialect);
 			} else {
-                return new ConstantPredicate(false).LinqExpression(bindings);
+                return new ConstantPredicate(false).LinqExpression(bindings, dialect);
 			}
 		}
 
-        private Expression GenerateOr(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates) {
+        private Expression GenerateOr(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates, LinqDialect dialect) {
 			if (predicates.Count() > 2) {
-				Expression a = predicates.First().LinqExpression(bindings);
-				Expression b = GenerateOr(bindings, predicates.Skip(1));
+				Expression a = predicates.First().LinqExpression(bindings, dialect);
+				Expression b = GenerateOr(bindings, predicates.Skip(1), dialect);
 				return Expression.OrElse(a, b);
 			} else if (predicates.Count() == 2) {
-				Expression a = predicates.First().LinqExpression(bindings);
-				Expression b = predicates.Last().LinqExpression(bindings);
+				Expression a = predicates.First().LinqExpression(bindings, dialect);
+				Expression b = predicates.Last().LinqExpression(bindings, dialect);
 				return Expression.OrElse(a, b);
 			} else if (predicates.Count() == 1) {
-				return predicates.First().LinqExpression(bindings);
+				return predicates.First().LinqExpression(bindings, dialect);
 			} else {
-				return new ConstantPredicate(false).LinqExpression(bindings);
+				return new ConstantPredicate(false).LinqExpression(bindings, dialect);
 			}
 		}
 
-		public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+		public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
 		{
 			switch (CompoundPredicateType) {
 				case CompoundPredicateType.And:
-                    return GenerateAnd(bindings, Subpredicates);
+                    return GenerateAnd(bindings, Subpredicates, dialect);
 				case CompoundPredicateType.Or:
-                    return GenerateOr(bindings, Subpredicates);
+                    return GenerateOr(bindings, Subpredicates, dialect);
 				case CompoundPredicateType.Not:
-                    return Expression.Not(Subpredicates.First().LinqExpression(bindings));
+                    return Expression.Not(Subpredicates.First().LinqExpression(bindings, dialect));
 			}
 			return null;
 		}

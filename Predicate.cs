@@ -5,6 +5,12 @@ using System.Collections.Generic;
 
 namespace Predicate
 {
+    public enum LinqDialect
+    {
+        Objects = 0,
+        EntityFramework
+    }
+
 	public abstract class Predicate
 	{
 		public static Predicate Parse(string format, params dynamic[] args) {
@@ -15,11 +21,11 @@ namespace Predicate
 			return new ConstantPredicate(value);
 		}
 
-		public Expression<Func<T, bool>> LinqExpression<T>() {
+		public Expression<Func<T, bool>> LinqExpression<T>(LinqDialect dialect = LinqDialect.Objects) {
 			ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
             var bindings = new Dictionary<string, ParameterExpression>();
             bindings.Add(self.Name, self);
-            return Expression.Lambda<Func<T, bool>>(LinqExpression(bindings), self);
+            return Expression.Lambda<Func<T, bool>>(LinqExpression(bindings, dialect), self);
 		}
 
 		public bool EvaluateObject<T>(T obj) {
@@ -38,15 +44,22 @@ namespace Predicate
 
 		// subclassers implement this (potentially recursively) to provide an expression to the public LinqExpression()
 		// method, given the provided bindings.
-		public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings);
+		public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect);
 	}
 
     public static class PredicateExtensions {
+        public static IQueryable<T> Where<T>(this IQueryable<T> e, Predicate p)
+        {
+            var linq = p.LinqExpression<T>(LinqDialect.EntityFramework);
+            var result = e.Where(linq);
+            return result;
+        }
+
         public static IEnumerable<T> Where<T>(this IEnumerable<T> e, Predicate p) {
             var linq = p.LinqExpression<T>();
             var result = e.Where(linq.Compile());
             return result;
-        }
+        }   
     }
 }
 

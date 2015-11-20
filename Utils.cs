@@ -5,22 +5,35 @@ using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Data.Entity;
 
 namespace Predicate
 {
     class Utils {
+
+        [DbFunction("CodeFirstDatabaseSchema", "_Predicate_MatchesRegex")]
         public static bool _Predicate_MatchesRegex(string s, string regex) {
             Regex r = new Regex(regex);
             return r.IsMatch(s);
         }
 
-        public static Expression CallSafe(Expression target, string methodName, params Expression[] arguments) {
-            var defaultTarget = Expression.Default(target.Type);
-            var isNull = Expression.ReferenceEqual(target, defaultTarget);
-            var argTypes = arguments.Select(a => a.Type).ToArray();
-            var called = Expression.Call(target, target.Type.GetMethod(methodName, argTypes), arguments);
-            var defaultCalled = Expression.Default(called.Type);
-            return Expression.Condition(isNull, defaultCalled, called);
+        public static Expression CallSafe(LinqDialect dialect, Expression target, string methodName, params Expression[] arguments) {
+            if (dialect == LinqDialect.Objects) {
+                var defaultTarget = Expression.Default(target.Type);
+                var isNull = Expression.ReferenceEqual(target, defaultTarget);
+                var argTypes = arguments.Select(a => a.Type).ToArray();
+                var called = Expression.Call(target, target.Type.GetMethod(methodName, argTypes), arguments);
+                var defaultCalled = Expression.Default(called.Type);
+                return Expression.Condition(isNull, defaultCalled, called);
+            } else if (dialect == LinqDialect.EntityFramework)
+            {
+                var argTypes = arguments.Select(a => a.Type).ToArray();
+                return Expression.Call(target, target.Type.GetMethod(methodName, argTypes), arguments);
+
+            } else
+            {
+                throw new NotImplementedException($"Unknown dialect ${dialect}");
+            }
         }
 
         public static Expression CallAggregate(string aggregate, params Expression[] args) {
@@ -111,12 +124,12 @@ namespace Predicate
             }
             return null;
 
-            #if false
+#if false
             return (from method in type.GetMethods()
             where method.Name == name
             where parameterTypes.SequenceEqual(ParameterTypeProjection(method))
             select method).SingleOrDefault();
-            #endif
+#endif
         }
     }
 }

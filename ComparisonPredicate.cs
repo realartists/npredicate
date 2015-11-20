@@ -178,14 +178,14 @@ namespace Predicate
             }
         }
 
-        private Expression _LinqExpression(Expression left, Expression right)
+        private Expression _LinqExpression(Expression left, Expression right, LinqDialect dialect)
         {
             if (0 != (Options & ComparisonPredicateOptions.CaseInsensitive))
             {
-                left = Utils.CallSafe(left, "ToLower");
+                left = Utils.CallSafe(dialect, left, "ToLower");
                 if (PredicateOperatorType != PredicateOperatorType.Matches)
                 {
-                    right = Utils.CallSafe(right, "ToLower");
+                    right = Utils.CallSafe(dialect, right, "ToLower");
                 }
             }
 
@@ -209,13 +209,13 @@ namespace Predicate
                 case PredicateOperatorType.Like:
                     throw new NotImplementedException();
                 case PredicateOperatorType.BeginsWith:
-                    return Utils.CallSafe(left, "StartsWith", right);
+                    return Utils.CallSafe(dialect, left, "StartsWith", right);
                 case PredicateOperatorType.EndsWith:
-                    return Utils.CallSafe(left, "EndsWith", right);
+                    return Utils.CallSafe(dialect, left, "EndsWith", right);
                 case PredicateOperatorType.In:
-                    return Utils.CallSafe(right, "Contains", left);
+                    return Utils.CallSafe(dialect, right, "Contains", left);
                 case PredicateOperatorType.Contains:
-                    return Utils.CallSafe(left, "Contains", right);
+                    return Utils.CallSafe(dialect, left, "Contains", right);
                 case PredicateOperatorType.Between:
                     Expression lower, upper;
                     if (right.Type.IsSubclassOf(typeof(Array)))
@@ -233,14 +233,14 @@ namespace Predicate
             return null;
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings) {
-            Expression left = LeftExpression.LinqExpression(bindings);
-            Expression right = RightExpression.LinqExpression(bindings);
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+            Expression left = LeftExpression.LinqExpression(bindings, dialect);
+            Expression right = RightExpression.LinqExpression(bindings, dialect);
 
             if (ComparisonPredicateModifier != ComparisonPredicateModifier.Direct)
             {
                 ParameterExpression t = Expression.Parameter(Utils.ElementType(left.Type));
-                Expression filter = Expression.Lambda(_LinqExpression(t, right), new ParameterExpression[] { t });
+                Expression filter = Expression.Lambda(_LinqExpression(t, right, dialect), new ParameterExpression[] { t });
                 if (ComparisonPredicateModifier == ComparisonPredicateModifier.All)
                 {
                     Expression all = Utils.CallAggregate("All", left, filter);
@@ -258,7 +258,7 @@ namespace Predicate
             }
             else
             {
-                return _LinqExpression(left, right);
+                return _LinqExpression(left, right, dialect);
             }
         }
     }

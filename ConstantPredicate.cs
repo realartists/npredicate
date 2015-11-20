@@ -23,7 +23,7 @@ namespace Predicate
             }
         }
 
-        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings)
+        public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect)
         {
             return Expression.Constant(Value);
         }
