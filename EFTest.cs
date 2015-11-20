@@ -168,6 +168,18 @@ namespace Predicate
             }
         }
 
+        [Test]
+        public void TestSubquery3()
+        {
+            using (var ctx = new TestEFContext())
+            {
+                var pred = Predicate.Parse("SUBQUERY(Watchers, $user, $user.Name BEGINSWITH 'James').@count > 0");
+                var matches = ctx.Documents.Where(pred);
+
+                Assert.AreEqual(1, matches.Count());
+            }
+        }
+
         // TODO: This can work, it's just a matter of placing _Predicate_MatchesRegex into
         // the database and then properly mapping and registering Utils._Predicate_MatchesRegex
         // with Entity Framework.
