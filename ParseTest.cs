@@ -329,6 +329,18 @@ namespace NPredicate
             Assert.IsTrue(Math.Abs((DateTime.UtcNow.AddDays(-2) - dt).TotalSeconds) < 1.0);
         }
             
+
+        [Test]
+        public void TestPascalRewriter()
+        {
+            var keypath = Expr.Parse("a.b.c");
+            keypath.Visit(new PascalCaseRewriter());
+            Assert.AreEqual("A.B.C", keypath.Format);
+
+            var subquery = Predicate.Parse("(SUBQUERY(SELF.a.collection, $c, (($c.name == 'foo') AND ($c.num < 10))).@count > 0)");
+            subquery.Visit(new PascalCaseRewriter());
+            Assert.AreEqual("(SUBQUERY(SELF.A.Collection, $c, (($c.Name == 'foo') AND ($c.Num < 10))).@count > 0)", subquery.Format);
+        }
     }
 }
 

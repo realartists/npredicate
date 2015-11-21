@@ -25,72 +25,28 @@ namespace NPredicate
 
     public abstract class Expr
     {
-        public ExpressionType ExpressionType
-        {
-            get; 
-            protected set;
-        }
+        public ExpressionType ExpressionType { get; protected set; }
 
-        public dynamic ConstantValue
-        {
-            get;
-            protected set;
-        }
+        public dynamic ConstantValue { get; set; }
 
-        public string KeyPath
-        {
-            get;
-            protected set;
-        }
+        public string KeyPath { get; set; }
 
-        public string Function
-        {
-            get;
-            protected set;
-        }
+        public string Function { get; set; }
 
-        public string Variable
-        {
-            get;
-            protected set;
-        }
+        public string Variable { get; set; }
 
-        public Expr Operand
-        {
-            get;
-            protected set;
-        }
+        public Expr Operand { get; set; }
 
-        public IEnumerable<Expr> Arguments
-        {
-            get;
-            protected set;
-        }
+        public IEnumerable<Expr> Arguments { get; set; }
 
-        public Expr Collection
-        {
-            get;
-            protected set;
-        }
+        public Expr Collection { get; set; }
 
-        public Predicate Predicate
-        {
-            get;
-            protected set;
-        }
+        public Predicate Predicate { get; set; }
 
-        public Expr LeftExpression
-        {
-            get;
-            protected set;
-        }
+        public Expr LeftExpression { get; set; }
 
-        public Expr RightExpression
-        {
-            get;
-            protected set;
-        }
-            
+        public Expr RightExpression { get; set; }
+
         public static Expr Parse(string format, params dynamic[] arguments) {
             return new PredicateParser(format, arguments).ParseExpr();
         }
@@ -177,7 +133,25 @@ namespace NPredicate
             return Format;            
         }
 
+        public virtual void Visit(IVisitor visitor)
+        {
+            visitor.Visit(this);
+            Operand?.Visit(visitor);
+            if (Arguments != null)
+            {
+                foreach (Expr arg in Arguments)
+                {
+                    arg.Visit(visitor);
+                }
+            }
+            Collection?.Visit(visitor);
+            Predicate?.Visit(visitor);
+            LeftExpression?.Visit(visitor);
+            RightExpression?.Visit(visitor);
+        }
+
         protected Expr() { }
+
     }
 
     class ConstantExpr : Expr {
@@ -325,7 +299,12 @@ namespace NPredicate
         public override string Format
         {
             get {
-                return KeyPath;
+                if (Operand != null)
+                {
+                    return Operand.Format + "." + KeyPath;
+                } else {
+                    return KeyPath;
+                }
             }
         }
     }
@@ -689,7 +668,7 @@ namespace NPredicate
         public override string Format
         {
             get {
-                return $"SUBQUERY({Collection.Format}, {Variable}, {Predicate}";
+                return $"SUBQUERY({Collection.Format}, {Variable}, {Predicate})";
             }
         }
     }

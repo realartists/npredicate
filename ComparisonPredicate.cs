@@ -103,12 +103,12 @@ namespace NPredicate
             return Comparison(left, PredicateOperatorType.Between, right, modifier, options);
         }
 
-        public PredicateOperatorType PredicateOperatorType { get; private set; }
-        public ComparisonPredicateModifier ComparisonPredicateModifier { get; private set; }
-        public Expr LeftExpression { get; private set; }
-        public Expr RightExpression { get; private set; }
+        public PredicateOperatorType PredicateOperatorType { get; set; }
+        public ComparisonPredicateModifier ComparisonPredicateModifier { get; set; }
+        public Expr LeftExpression { get; set; }
+        public Expr RightExpression { get; set; }
 
-        public ComparisonPredicateOptions Options { get; private set; }
+        public ComparisonPredicateOptions Options { get; set; }
 
         public override string Format
         {
@@ -260,6 +260,13 @@ namespace NPredicate
             {
                 return _LinqExpression(left, right, dialect);
             }
+        }
+
+        public override void Visit(IVisitor visitor)
+        {
+            visitor.Visit(this);
+            LeftExpression.Visit(visitor);
+            RightExpression.Visit(visitor);
         }
     }
 

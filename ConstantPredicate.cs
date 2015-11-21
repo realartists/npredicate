@@ -6,10 +6,7 @@ namespace NPredicate
 {
     public class ConstantPredicate : Predicate
     {
-        public bool Value {
-            get;
-            private set;
-        }
+        public bool Value { get; set; }
 
         public ConstantPredicate(bool val) {
             Value = val;

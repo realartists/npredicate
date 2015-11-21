@@ -34,6 +34,9 @@ namespace NPredicate
 			return func(obj);
 		}
 
+        // Subclassers may override this
+        public virtual void Visit(IVisitor visitor) { visitor.Visit(this); }
+
 		// Subclassers must implement:
 		public abstract string Format { get; }
 

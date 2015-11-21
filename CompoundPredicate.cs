@@ -13,17 +13,11 @@ namespace NPredicate
 
 	public class CompoundPredicate : Predicate
 	{
-		public CompoundPredicateType CompoundPredicateType {
-			get;
-			protected set;
-		}
+		public CompoundPredicateType CompoundPredicateType { get; set; }
 
-		public IEnumerable<Predicate> Subpredicates {
-			get;
-			protected set;
-		}
+        public IEnumerable<Predicate> Subpredicates { get; set; }
 
-		protected CompoundPredicate() { }
+        protected CompoundPredicate() { }
 
 		public static CompoundPredicate And(IEnumerable<Predicate> subpredicates) {
 			CompoundPredicate p = new CompoundPredicate();
@@ -106,6 +100,15 @@ namespace NPredicate
 			}
 			return null;
 		}
-	}
+
+        public override void Visit(IVisitor visitor)
+        {
+            visitor.Visit(this);
+            foreach (var predicate in Subpredicates)
+            {
+                predicate.Visit(visitor);
+            }
+        }
+    }
 }
 
