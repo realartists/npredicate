@@ -5,13 +5,13 @@ using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Data.Entity;
+//using System.Data.Entity;
 
-namespace NPredicate
+namespace RealArtists.NPredicate
 {
     class Utils {
 
-        [DbFunction("CodeFirstDatabaseSchema", "_Predicate_MatchesRegex")]
+        //[DbFunction("CodeFirstDatabaseSchema", "_Predicate_MatchesRegex")]
         public static bool _Predicate_MatchesRegex(string s, string regex) {
             Regex r = new Regex(regex);
             return r.IsMatch(s);

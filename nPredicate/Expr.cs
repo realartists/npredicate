@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Diagnostics;
-using System.Data.Entity;
 
-namespace NPredicate
+namespace RealArtists.NPredicate
 {
     public enum ExpressionType {
         ConstantValueExpressionType = 0, // Expression that always returns the same value
@@ -491,8 +489,9 @@ namespace NPredicate
                 return Expression.Call(arg0, name, null, Utils.AsDouble(arg1));
             } else
             {
-                var method = typeof(DbFunctions).GetMethod(name, new Type[] { typeof(DateTime?), typeof(int?) });
-                return Utils.AsNotNullable(Expression.Call(method, Utils.AsNullable(arg0), Utils.AsNullable(Utils.AsInt(arg1))));
+                //var method = typeof(DbFunctions).GetMethod(name, new Type[] { typeof(DateTime?), typeof(int?) });
+                //return Utils.AsNotNullable(Expression.Call(method, Utils.AsNullable(arg0), Utils.AsNullable(Utils.AsInt(arg1))));
+                return Expression.Call(arg0, name, null, Utils.AsDouble(arg1));
             }
         }
 
