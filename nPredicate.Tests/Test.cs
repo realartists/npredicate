@@ -1,32 +1,30 @@
-﻿using NUnit.Framework;
+﻿using Xunit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace NPredicate
+namespace RealArtists.NPredicate.Tests
 {
-
-	[TestFixture ()]
 	public class Test
 	{
-		[Test ()]
+		[Fact]
 		public void TestAnd()
 		{
 			Predicate yes = Predicate.Constant(true);
 			Predicate no = Predicate.Constant(false);
 
 			// (YES AND NO)
-			Assert.IsFalse(CompoundPredicate.And(new Predicate[] { yes, no }).EvaluateObject<object>(null));
+			Assert.False(CompoundPredicate.And(new Predicate[] { yes, no }).EvaluateObject<object>(null));
 			// (YES AND YES)
-			Assert.IsTrue(CompoundPredicate.And(new Predicate[] { yes, yes }).EvaluateObject<object>(null));
+			Assert.True(CompoundPredicate.And(new Predicate[] { yes, yes }).EvaluateObject<object>(null));
 			// (NO AND NO) 
-			Assert.IsFalse(CompoundPredicate.And(new Predicate[] { no, no }).EvaluateObject<object>(null));
+			Assert.False(CompoundPredicate.And(new Predicate[] { no, no }).EvaluateObject<object>(null));
 			// (YES AND YES AND YES AND YES AND YES)
-			Assert.IsTrue(CompoundPredicate.And(new Predicate[] { yes, yes, yes, yes, yes }).EvaluateObject<object>(null));
+			Assert.True(CompoundPredicate.And(new Predicate[] { yes, yes, yes, yes, yes }).EvaluateObject<object>(null));
 		}
 
-		[Test ()]
+		[Fact]
 		public void TestLinq()
 		{
 			// (YES OR NO)
@@ -41,7 +39,7 @@ namespace NPredicate
 
 			var v = l.Where(or.LinqExpression<Boolean>().Compile());
 
-			Assert.AreEqual(1, v.Count());
+			Assert.Equal(1, v.Count());
 		}
 
 		public class Document {
@@ -54,7 +52,7 @@ namespace NPredicate
 			}
 		}
 
-		[Test()]
+		[Fact]
 		public void TestKeyPath()
 		{
 			Document.User user = new Document.User();
@@ -66,14 +64,14 @@ namespace NPredicate
 
 			// Content
 			var content = Expr.MakeKeyPath("Content").ValueWithObject<Document, string>(doc);
-			Assert.AreEqual(doc.Content, content);
+			Assert.Equal(doc.Content, content);
 
 			// Author.Name
 			var authorName = Expr.MakeKeyPath("Author.Name").ValueWithObject<Document, string>(doc);
-			Assert.AreEqual(doc.Author.Name, authorName);
+			Assert.Equal(doc.Author.Name, authorName);
 		}
 
-		[Test()]
+		[Fact]
 		public void TestSafeNavigation()
 		{
 			// Author.Name
@@ -81,10 +79,10 @@ namespace NPredicate
 			doc.Content = "Hello World";
 
 			var authorName = Expr.MakeKeyPath("Author.Name").ValueWithObject<Document, string>(doc);
-			Assert.IsNull(authorName);
+			Assert.Null(authorName);
 		}
 
-		[Test()]
+		[Fact]
 		public void TestNumericComparison()
 		{
 			// SELF = 1
@@ -93,11 +91,11 @@ namespace NPredicate
 
 			var p = ComparisonPredicate.LessThan(a, b);
 
-			Assert.IsTrue(p.EvaluateObject(0));
-			Assert.IsFalse(p.EvaluateObject(1));
+			Assert.True(p.EvaluateObject(0));
+			Assert.False(p.EvaluateObject(1));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestStringEquals()
 		{
 			// SELF = 'Hello World'
@@ -105,11 +103,11 @@ namespace NPredicate
 			var b = Expr.MakeConstant("Hello World");
 
 			var p = ComparisonPredicate.EqualTo(a, b);
-			Assert.IsTrue(p.EvaluateObject("Hello World"));
-			Assert.IsFalse(p.EvaluateObject("Goodbye Cruel World"));
+			Assert.True(p.EvaluateObject("Hello World"));
+			Assert.False(p.EvaluateObject("Goodbye Cruel World"));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestStringEqualsCaseInsensitive()
 		{
 			// SELF =[c] 'Hello World'
@@ -117,10 +115,10 @@ namespace NPredicate
 			var b = Expr.MakeConstant("Hello World");
 
             var p = ComparisonPredicate.EqualTo(a, b, ComparisonPredicateModifier.Direct, ComparisonPredicateOptions.CaseInsensitive);
-			Assert.IsTrue(p.EvaluateObject("hello world"));
+			Assert.True(p.EvaluateObject("hello world"));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestRegex()
 		{
 			// SELF MATCHES '^[0-9a-fA-F]+$'
@@ -128,11 +126,11 @@ namespace NPredicate
 			var b = Expr.MakeConstant("^[0-9a-fA-F]+$");
 
 			var p = ComparisonPredicate.Matches(a, b);
-			Assert.IsTrue(p.EvaluateObject("F00DFACE"));
-			Assert.IsFalse(p.EvaluateObject("Hello World"));
+			Assert.True(p.EvaluateObject("F00DFACE"));
+			Assert.False(p.EvaluateObject("Hello World"));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestIn()
 		{
 			// SELF IN { 1, 2, 3, 4 }
@@ -140,11 +138,11 @@ namespace NPredicate
 			var b = Expr.MakeConstant(new List<int>(new int[] { 1, 2, 3, 4 }));
 
 			var p = ComparisonPredicate.In(a, b);
-			Assert.IsTrue(p.EvaluateObject(1));
-			Assert.IsFalse(p.EvaluateObject(0));
+			Assert.True(p.EvaluateObject(1));
+			Assert.False(p.EvaluateObject(0));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestBetween()
 		{
 			// SELF BETWEEN { 1, 4 }
@@ -152,11 +150,11 @@ namespace NPredicate
 			var b = Expr.MakeConstant(new List<int>(new int[] { 1, 4 }));
 
 			var p = ComparisonPredicate.Between(a, b);
-			Assert.IsTrue(p.EvaluateObject(2));
-			Assert.IsFalse(p.EvaluateObject(0));
+			Assert.True(p.EvaluateObject(2));
+			Assert.False(p.EvaluateObject(0));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestSubquery()
 		{
 			// SUBQUERY(keywords, $k, $k BEGINSWITH 'hello').@count
@@ -173,10 +171,10 @@ namespace NPredicate
 			doc.Keywords = new string[] { "hello world", "hello vietnam", "hello usa", "goodbye cruel world" };
 
 			var helloCount = count.ValueWithObject<Document, int>(doc);
-			Assert.AreEqual(helloCount, 3);
+			Assert.Equal(helloCount, 3);
 		}
 
-		[Test()]
+		[Fact]
 		public void TestAggregate()
 		{
 			// SELF IN { 0, 1 }
@@ -187,21 +185,21 @@ namespace NPredicate
 
 			var p = ComparisonPredicate.In(Expr.MakeEvaluatedObject(), agg);
 
-			Assert.IsTrue(p.EvaluateObject(0));
-			Assert.IsTrue(p.EvaluateObject(1));
-			Assert.IsFalse(p.EvaluateObject(2));
+			Assert.True(p.EvaluateObject(0));
+			Assert.True(p.EvaluateObject(1));
+			Assert.False(p.EvaluateObject(2));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestSum()
 		{
 			var l = Expr.MakeAggregate(new Expr[] { Expr.MakeConstant(1), Expr.MakeConstant(2), Expr.MakeConstant(3), });
 			var sum = Expr.MakeFunction("sum:", new Expr[] { l });
 
-			Assert.AreEqual(6, sum.LinqExpression<int, int>().Compile()(0));
+			Assert.Equal(6, sum.LinqExpression<int, int>().Compile()(0));
 		}
 
-		[Test()]
+		[Fact]
 		public void TestArithmetic()
 		{
 			var self = Expr.MakeEvaluatedObject();
@@ -212,9 +210,9 @@ namespace NPredicate
 			var abs = Expr.MakeFunction("abs:", self);
 			var rand = Expr.MakeFunction("random");
 
-			Assert.AreEqual(4, add.ValueWithObject<int, int>(2));
-			Assert.AreEqual(0, sub.ValueWithObject<int, int>(2));
-			Assert.AreEqual(2, abs.ValueWithObject<int, int>(-2));
+			Assert.Equal(4, add.ValueWithObject<int, int>(2));
+			Assert.Equal(0, sub.ValueWithObject<int, int>(2));
+			Assert.Equal(2, abs.ValueWithObject<int, int>(-2));
            
 			int i = rand.ValueWithObject<int, int>(0);
             int j = rand.ValueWithObject<int, int>(0);
@@ -222,22 +220,22 @@ namespace NPredicate
             Assert.True(i != j);
 		}
 
-		[Test()]
+		[Fact]
 		public void TestStringFns() {
 			var self = Expr.MakeEvaluatedObject();
 
 			var lower = Expr.MakeFunction("lowercase:", self);
 			var upper = Expr.MakeFunction("uppercase:", self);
 
-			Assert.AreEqual("hello", lower.ValueWithObject<string, string>("Hello"));
-			Assert.AreEqual("HELLO", upper.ValueWithObject<string, string>("Hello"));
+			Assert.Equal("hello", lower.ValueWithObject<string, string>("Hello"));
+			Assert.Equal("HELLO", upper.ValueWithObject<string, string>("Hello"));
 		}
 
-        [Test()]
+        [Fact]
         public void TestFormatString() 
         {
             var expr = Expr.MakeConstant("Hello World");
-            Assert.AreEqual("'Hello World'", expr.Format);
+            Assert.Equal("'Hello World'", expr.Format);
         }
 	}
 }

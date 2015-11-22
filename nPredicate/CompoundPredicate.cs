@@ -3,7 +3,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Collections.Generic;
 
-namespace NPredicate
+namespace RealArtists.NPredicate
 {
 	public enum CompoundPredicateType {
 		Not,

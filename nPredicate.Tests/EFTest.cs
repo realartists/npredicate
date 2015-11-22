@@ -1,8 +1,7 @@
-﻿using NUnit.Framework;
+﻿using Xunit;
 using System.Collections.Generic;
 using System.Linq;
 using System.Data.Entity;
-using System.Data.Common;
 using System.Data.Entity.Migrations;
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -10,7 +9,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 // No SQL Server to connect to for these tests on the Mac side.
 #if !__MonoCS__
 
-namespace NPredicate
+namespace RealArtists.NPredicate.Tests
 {
     public class TestEFUser {
         public int Id { get; set; }
@@ -41,8 +40,6 @@ namespace NPredicate
         public virtual DbSet<TestEFDocument> Documents { get; set; }
         public virtual DbSet<TestEFUser> Users { get; set; }
 
-        public TestEFContext(DbConnection connection) : base(connection, true) { }
-
         public TestEFContext() : base("TestEFContext") { }
 
         public TestEFContext(string conn) : base(conn) { }
@@ -57,10 +54,9 @@ namespace NPredicate
         }
     }
 
-    [TestFixture()]
     public class EFTest
     {
-        [TestFixtureSetUp]
+        //[TestFixtureSetUp]
         public void Initialize() {
             Database.SetInitializer(new DropCreateDatabaseAlways<TestEFContext>());
 
@@ -81,16 +77,16 @@ namespace NPredicate
             }
         }
 
-        [Test]
+        [Fact]
         public void TestEFSanity()
         {
             using (var ctx = new TestEFContext()) {
-                Assert.IsTrue(ctx.Documents.Where(x => x.Content == "Hello World").Any());
-                Assert.IsFalse(ctx.Documents.Where(x => x.Content == "Nobody here but us chickens").Any());
+                Assert.True(ctx.Documents.Where(x => x.Content == "Hello World").Any());
+                Assert.False(ctx.Documents.Where(x => x.Content == "Nobody here but us chickens").Any());
             }
         }
 
-        [Test]
+        [Fact]
         public void TestStringEquals()
         {
             using (var ctx = new TestEFContext("TestEFContext"))
@@ -101,11 +97,11 @@ namespace NPredicate
                 var pred = ComparisonPredicate.EqualTo(content, needle);
                 var matches = ctx.Documents.Where(pred);
 
-                Assert.AreEqual(1, matches.Count());
+                Assert.Equal(1, matches.Count());
             }
         }
 
-        [Test]
+        [Fact]
         public void TestCaseInsensitive()
         {
             // Content ==[c] "hello world"
@@ -117,12 +113,12 @@ namespace NPredicate
                 var pred = ComparisonPredicate.EqualTo(content, needle, ComparisonPredicateModifier.Direct, ComparisonPredicateOptions.CaseInsensitive);
                 var matches = ctx.Documents.Where(pred.LinqExpression<TestEFDocument>().Compile());
 
-                Assert.AreEqual(1, matches.Count());
+                Assert.Equal(1, matches.Count());
             }
             
         }
       
-        [Test]
+        [Fact]
         public void TestSubquery()
         {
             // COUNT(SUBQUERY(Watchers, $user, $user.Name BEGINSWITH "James")) > 0
@@ -141,11 +137,11 @@ namespace NPredicate
 
                 var matches = ctx.Documents.Where(pred);
 
-                Assert.AreEqual(1, matches.Count());
+                Assert.Equal(1, matches.Count());
             }
         }
 
-        [Test]
+        [Fact]
         public void TestSubquery2()
         {
             // SUBQUERY(Watchers, $user, $user.Name BEGINSWITH "James").@count > 0
@@ -164,11 +160,11 @@ namespace NPredicate
 
                 var matches = ctx.Documents.Where(pred);
 
-                Assert.AreEqual(1, matches.Count());
+                Assert.Equal(1, matches.Count());
             }
         }
 
-        [Test]
+        [Fact]
         public void TestSubquery3()
         {
             using (var ctx = new TestEFContext())
@@ -176,7 +172,7 @@ namespace NPredicate
                 var pred = Predicate.Parse("SUBQUERY(Watchers, $user, $user.Name BEGINSWITH 'James').@count > 0");
                 var matches = ctx.Documents.Where(pred);
 
-                Assert.AreEqual(1, matches.Count());
+                Assert.Equal(1, matches.Count());
             }
         }
 
@@ -185,30 +181,30 @@ namespace NPredicate
         // with Entity Framework.
         // See ship://Problems/371 <Register _Predicate_MatchesRegex in the database and map it into EF>
 #if false
-        [Test]
+        [Fact]
         public void TestMatches()
         {
             //var d1 = Context.Documents.Where(x => Utils._Predicate_MatchesRegex(x.Content, ".*World$"));
             using (var ctx = new TestEFContext()) {
                 var predicate = Predicate.Parse("Content MATCHES '.*World$'");
                 var d2 = ctx.Documents.Where(predicate);
-                Assert.AreEqual(1, d2.Count());
+                Assert.Equal(1, d2.Count());
             }
             // Assert.Throws<Exception>(delegate { Context.Documents.Where(predicate); });
         }
 #endif
 
-        [Test]
+        [Fact]
         public void TestName()
         {
             using (var ctx = new TestEFContext())
             {
                 var predicate = Predicate.Parse("Author.Name == 'James Howard'");
-                Assert.IsFalse(ctx.Documents.Where(predicate).Any());
+                Assert.False(ctx.Documents.Where(predicate).Any());
             }
         }
 
-        [Test]
+        [Fact]
         public void TestDateComparison()
         {
             using (var ctx = new TestEFContext())
@@ -216,12 +212,12 @@ namespace NPredicate
                 var nope = Predicate.Parse("CreationDate > ModificationDate");
                 var yep = Predicate.Parse("CreationDate < ModificationDate");
 
-                Assert.IsFalse(ctx.Documents.Where(nope).Any());
-                Assert.IsTrue(ctx.Documents.Where(yep).Any());
+                Assert.False(ctx.Documents.Where(nope).Any());
+                Assert.True(ctx.Documents.Where(yep).Any());
             }
         }
 
-        [Test]
+        [Fact]
         public void TestDateArithmetic()
         {
             using (var ctx = new TestEFContext())
@@ -229,8 +225,8 @@ namespace NPredicate
                 var nope = Predicate.Parse("CreationDate < FUNCTION(now(), 'dateByAddingDays:', -4)");
                 var yep = Predicate.Parse("CreationDate < FUNCTION(now(), 'dateByAddingDays:', -2)");
 
-                Assert.IsFalse(ctx.Documents.Where(nope).Any());
-                Assert.IsTrue(ctx.Documents.Where(yep).Any());
+                Assert.False(ctx.Documents.Where(nope).Any());
+                Assert.True(ctx.Documents.Where(yep).Any());
             }
         }
     }

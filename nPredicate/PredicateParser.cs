@@ -5,8 +5,9 @@ using System.Diagnostics;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 using System.Linq;
+using RealArtists.NPredicate.Grammar;
 
-namespace NPredicate
+namespace RealArtists.NPredicate
 {
     public class PredicateParser : NSPredicateBaseListener
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NPredicate
+namespace RealArtists.NPredicate
 {
     public interface IVisitor
     {
