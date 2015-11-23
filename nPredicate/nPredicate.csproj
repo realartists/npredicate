@@ -69,6 +69,7 @@
       <CustomToolNamespace>RealArtists.NPredicate.Grammar</CustomToolNamespace>
     </Antlr4>
     <None Include="App.config" />
+    <None Include="nPredicate.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

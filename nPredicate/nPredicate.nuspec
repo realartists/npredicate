@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>James Howard</authors>
+    <owners>James Howard, Nick Sivo</owners>
+    <licenseUrl>https://github.com/realartists/npredicate/raw/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/realartists/npredicate</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Initial release.</releaseNotes>
+    <copyright>Copyright 2015 Real Artists, Inc.</copyright>
+    <tags>NSPredicate</tags>
+  </metadata>
+</package>
