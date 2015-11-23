@@ -1,9 +1,0 @@
-#!/bin/bash
-
-echo "Compiling grammar $1"
-java -jar ./antlr-4.5.1-complete.jar $1
-
-if [ $? -eq "0" ] ; then
-    echo "Compiling java files"
-    javac -cp "./antlr-4.5.1-complete.jar" *.java
-fi
