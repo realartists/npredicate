@@ -6,7 +6,7 @@ using System.Data.Entity.Migrations;
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
 
-// No SQL Server to connect to for these tests on the Mac side.
+// No SQL Ce Server to connect to for these tests on the Mac side.
 #if !__MonoCS__
 
 namespace RealArtists.NPredicate.Tests
@@ -28,11 +28,7 @@ namespace RealArtists.NPredicate.Tests
         public string Content { get; set; }
         public virtual ICollection<TestEFUser> Watchers { get; set; }
         public TestEFUser Author { get; set; }
-
-        [Column(TypeName = "DateTime2")]
         public DateTime ModificationDate { get; set; }
-
-        [Column(TypeName = "DateTime2")]
         public DateTime CreationDate { get; set; }
     }
 
@@ -40,7 +36,7 @@ namespace RealArtists.NPredicate.Tests
         public virtual DbSet<TestEFDocument> Documents { get; set; }
         public virtual DbSet<TestEFUser> Users { get; set; }
 
-        public TestEFContext() : base("TestEFContext") { }
+        public TestEFContext() : base("name=TestEFContext") { }
 
         public TestEFContext(string conn) : base(conn) { }
     }
@@ -54,29 +50,35 @@ namespace RealArtists.NPredicate.Tests
         }
     }
 
-    public class EFTest
+  public class SqlCeFixture : IDisposable {
+    public SqlCeFixture() {
+      Database.SetInitializer(new DropCreateDatabaseAlways<TestEFContext>());
+
+      using (var ctx = new TestEFContext()) {
+        var james = ctx.Users.Add(new TestEFUser() { Name = "James Howard" });
+        var nick = ctx.Users.Add(new TestEFUser() { Name = "Nick Sivo" });
+
+        var doc1 = ctx.Documents.Add(new TestEFDocument() { Content = "Hello World" });
+        doc1.Watchers.Add(james);
+        doc1.Watchers.Add(nick);
+        doc1.CreationDate = DateTime.UtcNow.AddDays(-3);
+        doc1.ModificationDate = DateTime.UtcNow.AddDays(-2);
+
+        ctx.Documents.Add(new TestEFDocument() { Content = "Goodbye Cruel World" });
+
+        ctx.SaveChanges();
+      }
+    }
+
+    public void Dispose() {
+      using (var ctx = new TestEFContext()) {
+        ctx.Database.Delete();
+      }
+    }
+  }
+
+    public class EFTest : IClassFixture<SqlCeFixture>
     {
-        //[TestFixtureSetUp]
-        public void Initialize() {
-            Database.SetInitializer(new DropCreateDatabaseAlways<TestEFContext>());
-
-            using (var ctx = new TestEFContext())
-            {
-                var james = ctx.Users.Add(new TestEFUser() { Name = "James Howard" });
-                var nick = ctx.Users.Add(new TestEFUser() { Name = "Nick Sivo" });
-
-                var doc1 = ctx.Documents.Add(new TestEFDocument() { Content = "Hello World" });
-                doc1.Watchers.Add(james);
-                doc1.Watchers.Add(nick);
-                doc1.CreationDate = DateTime.UtcNow.AddDays(-3);
-                doc1.ModificationDate = DateTime.UtcNow.AddDays(-2);
-
-                ctx.Documents.Add(new TestEFDocument() { Content = "Goodbye Cruel World" });
-
-                ctx.SaveChanges();
-            }
-        }
-
         [Fact]
         public void TestEFSanity()
         {
