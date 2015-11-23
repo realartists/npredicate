@@ -54,7 +54,7 @@
       }
     }
 
-    private Expression GenerateAnd(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates, LinqDialect dialect) {
+    private Expression GenerateAnd(Dictionary<string, Expression> bindings, IEnumerable<Predicate> predicates, LinqDialect dialect) {
       if (predicates.Count() > 2) {
         Expression a = predicates.First().LinqExpression(bindings, dialect);
         Expression b = GenerateAnd(bindings, predicates.Skip(1), dialect);
@@ -70,7 +70,7 @@
       }
     }
 
-    private Expression GenerateOr(Dictionary<string, ParameterExpression> bindings, IEnumerable<Predicate> predicates, LinqDialect dialect) {
+    private Expression GenerateOr(Dictionary<string, Expression> bindings, IEnumerable<Predicate> predicates, LinqDialect dialect) {
       if (predicates.Count() > 2) {
         Expression a = predicates.First().LinqExpression(bindings, dialect);
         Expression b = GenerateOr(bindings, predicates.Skip(1), dialect);
@@ -86,7 +86,7 @@
       }
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       switch (CompoundPredicateType) {
         case CompoundPredicateType.And:
           return GenerateAnd(bindings, Subpredicates, dialect);

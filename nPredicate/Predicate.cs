@@ -20,8 +20,13 @@
 
     public Expression<Func<T, bool>> LinqExpression<T>(LinqDialect dialect = LinqDialect.Objects) {
       ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
-      var bindings = new Dictionary<string, ParameterExpression>();
+      var bindings = new Dictionary<string, Expression>();
       bindings.Add(self.Name, self);
+      if (VariableBindings != null) {
+        foreach (var pair in VariableBindings) {
+          bindings.Add("$" + pair.Key, Expression.Constant(pair.Value));
+        }
+      }
       return Expression.Lambda<Func<T, bool>>(LinqExpression(bindings, dialect), self);
     }
 
@@ -30,6 +35,12 @@
       Func<T, bool> func = expr.Compile();
       return func(obj);
     }
+
+    // Dictionary of variable names to values to replace variable references in the predicate.
+    // For example, if the predicate is $foo == 42, and you want to set the value of $foo do:
+    // predicate.VariableBindings = new Dictionary<string, dynamic>() { { "foo", 42 } };
+    // Note that the preceding $ should be omitted in the VariableBindings dictionary.
+    public Dictionary<string, dynamic> VariableBindings { get; set; }
 
     // Subclassers may override this
     public virtual void Visit(IVisitor visitor) { visitor.Visit(this); }
@@ -43,7 +54,7 @@
 
     // subclassers implement this (potentially recursively) to provide an expression to the public LinqExpression()
     // method, given the provided bindings.
-    public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect);
+    public abstract Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect);
   }
 
   public static class PredicateExtensions {

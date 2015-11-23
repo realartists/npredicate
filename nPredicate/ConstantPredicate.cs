@@ -15,7 +15,7 @@
       }
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       return Expression.Constant(Value);
     }
   }

@@ -215,7 +215,7 @@
       return null;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       Expression left = LeftExpression.LinqExpression(bindings, dialect);
       Expression right = RightExpression.LinqExpression(bindings, dialect);
 

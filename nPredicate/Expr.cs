@@ -105,7 +105,7 @@
     }
 
     public Expression<Func<T, V>> LinqExpression<T, V>(LinqDialect dialect = LinqDialect.Objects) {
-      var bindings = new Dictionary<string, ParameterExpression>();
+      var bindings = new Dictionary<string, Expression>();
       ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
       bindings.Add(self.Name, self);
       return Expression.Lambda<Func<T, V>>(LinqExpression(bindings, dialect), self);
@@ -121,7 +121,7 @@
       return ValueWithObject<dynamic, V>(null);
     }
 
-    public abstract Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect);
+    public abstract Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect);
 
     public abstract string Format { get; }
 
@@ -153,7 +153,7 @@
       ConstantValue = value;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       return Expression.Constant(ConstantValue);
     }
 
@@ -173,7 +173,7 @@
       ExpressionType = ExpressionType.EvaluatedObjectExpressionType;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       return bindings["SELF"];
     }
 
@@ -190,7 +190,7 @@
       this.Variable = variable;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       return bindings[Variable];
     }
 
@@ -214,7 +214,7 @@
       this.KeyPath = keyPath;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       string[] keys = KeyPath.Split('.');
       Expression result = Operand != null ? Operand.LinqExpression(bindings, dialect) : bindings["SELF"];
       foreach (string key in keys) {
@@ -344,7 +344,7 @@
     // - (NSDate*)dateByAddingYears:(NSNumber*)years;
     //
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       var argumentExpressions = Arguments.Select(a => a.LinqExpression(bindings, dialect));
       var arg0 = argumentExpressions.FirstOrDefault();
       var arg1 = argumentExpressions.ElementAtOrDefault(1);
@@ -521,7 +521,7 @@
       throw new NotSupportedException($"Cannot emit linq for {Format}. Casting is not supported in Linq to Entities.");
     }
 
-    private Expression GetObjectAtIndex(Expression lhs, Expression rhs, Dictionary<string, ParameterExpression> bindings) {
+    private Expression GetObjectAtIndex(Expression lhs, Expression rhs, Dictionary<string, Expression> bindings) {
       Expr indexExpr = Arguments.ElementAt(1);
       if (indexExpr is SymbolicValueExpr) {
         switch ((indexExpr as SymbolicValueExpr).SymbolType) {
@@ -562,7 +562,7 @@
 
 
   class SetExpr : Expr {
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       throw new NotImplementedException();
     }
 
@@ -581,7 +581,7 @@
       this.Predicate = predicate;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       // Generate code for
       // collection.Where(variable => predicate)
 
@@ -594,7 +594,7 @@
       }
 
       ParameterExpression varExpr = Expression.Parameter(itemType, Variable);
-      var subBindings = new Dictionary<string, ParameterExpression>(bindings);
+      var subBindings = new Dictionary<string, Expression>(bindings);
       subBindings[Variable] = varExpr;
       var p = Predicate.LinqExpression(subBindings, dialect);
 
@@ -626,7 +626,7 @@
       this.Arguments = components;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       var exprs = new List<Expression>();
       Type type = typeof(object);
       foreach (var e in Arguments) {
@@ -664,7 +664,7 @@
       SymbolType = symbolType;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       // SymbolicValueExpr is special. It needs to know about what it's being called on to do anything useful.
       // See FunctionExpr objectFrom:withIndex:
       return Expression.Constant(0);
@@ -691,7 +691,7 @@
       RightExpression = rhs;
     }
 
-    public override Expression LinqExpression(Dictionary<string, ParameterExpression> bindings, LinqDialect dialect) {
+    public override Expression LinqExpression(Dictionary<string, Expression> bindings, LinqDialect dialect) {
       var valueExpression = RightExpression.LinqExpression(bindings, dialect);
       var variableExpression = Expression.Variable(valueExpression.Type, Variable);
       bindings[Variable] = variableExpression;

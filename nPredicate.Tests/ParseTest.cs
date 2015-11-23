@@ -306,6 +306,15 @@
       subquery.Visit(new PascalCaseRewriter());
       Assert.Equal("(SUBQUERY(SELF.A.Collection, $c, (($c.Name == 'foo') AND ($c.Num < 10))).@count > 0)", subquery.Format);
     }
+
+    [Fact]
+    public void TestVariableBindings() {
+      var pred = Predicate.Parse("$varA == $varB");
+      pred.VariableBindings = new Dictionary<string, dynamic>() { { "varA", 42 }, { "varB", 42 } };
+      Assert.True(pred.EvaluateObject<object>(null));
+      pred.VariableBindings = new Dictionary<string, dynamic>() { { "varA", 42 }, { "varB", 43 } };
+      Assert.False(pred.EvaluateObject<object>(null));
+    }
   }
 }
 
