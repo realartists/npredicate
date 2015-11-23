@@ -3,6 +3,7 @@
   using System.Collections.Generic;
   using System.Diagnostics;
   using System.Linq;
+  using System.Text.RegularExpressions;
   using Antlr4.Runtime;
   using Antlr4.Runtime.Misc;
   using Antlr4.Runtime.Tree;
@@ -400,9 +401,14 @@
       Stack.Push(Expr.MakeVariable(identifier));
     }
 
+    private static string Unescape(string escaped) {
+      return Regex.Unescape(escaped);
+    }
+
     public override void ExitValueString(NSPredicateParser.ValueStringContext context) {
       var str = context.STRING().GetText();
       str = str.Substring(1, str.Length - 2); // Strip quotes
+      str = Unescape(str);
       Stack.Push(Expr.MakeConstant(str));
     }
 

@@ -323,6 +323,17 @@
       pred.Visit(new GuidRewriter());
       Assert.True(pred.EvaluateObject<object>(null));
     }
+
+    [Fact]
+    public void TestStringEscape() {
+      Assert.Equal("Hello 'World'", Expr.Parse("'Hello \\'World\\''").Value<string>());
+    }
+
+    [Fact]
+    public void TestUnicodeEscape() {
+      Assert.Equal("☂", "\u2602");
+      Assert.Equal("☂", Expr.Parse("'\\u2602'").Value<string>());
+    }
   }
 }
 
