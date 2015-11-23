@@ -315,6 +315,14 @@
       pred.VariableBindings = new Dictionary<string, dynamic>() { { "varA", 42 }, { "varB", 43 } };
       Assert.False(pred.EvaluateObject<object>(null));
     }
+
+    [Fact]
+    public void TestCompareStringAndGuid() {
+      var guid = Guid.NewGuid();
+      var pred = Predicate.Parse("%@ == %@", guid.ToString(), guid);
+      pred.Visit(new GuidRewriter());
+      Assert.True(pred.EvaluateObject<object>(null));
+    }
   }
 }
 
