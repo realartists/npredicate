@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/realartists/npredicate</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes>Initial release.</releaseNotes>
+    <releaseNotes>Remove unnecessary (at runtime) dependencies.</releaseNotes>
     <copyright>Copyright 2015 Real Artists, Inc.</copyright>
     <tags>NSPredicate</tags>
   </metadata>
