@@ -3,11 +3,11 @@
 ###############################################################################
 * text=auto
 
-*.sln text eol=crlf
-*.cs text eol=crlf
-*.config text eol=crlf
-*.nuspec text eol=crlf
-*.csproj text eol=crlf
+*.sln       eol=crlf
+*.cs        eol=crlf
+*.config    eol=crlf
+*.nuspec    eol=crlf
+*.csproj    eol=crlf
 
 ###############################################################################
 # Set default behavior for command prompt diff.
