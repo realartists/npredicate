@@ -276,6 +276,19 @@
     }
 
     [Fact]
+    public void TestCaseInsensitiveProperties() {
+      C c0 = new C() { S = "Hello World" };
+      C c1 = new C() { S = "Goodbye Cruel World" };
+
+      B b = new B() { Collection = new C[] { c0, c1 } };
+
+      A a = new A() { B = b };
+
+      var any = Predicate.Parse("ANY b.collection.s BEGINSWITH 'Hello'");
+      Assert.True(any.EvaluateObject(a));
+    }
+
+    [Fact]
     public void TestCastStringToNumber() {
       var e = Expr.Parse("CAST('123.0', 'NSNumber')");
       Assert.Equal(123.0, e.Value<double>());
@@ -293,18 +306,6 @@
       var e = Expr.Parse("FUNCTION(now(), 'dateByAddingDays:', -2)");
       DateTime dt = e.Value<DateTime>();
       Assert.True(Math.Abs((DateTime.UtcNow.AddDays(-2) - dt).TotalSeconds) < 1.0);
-    }
-
-
-    [Fact]
-    public void TestPascalRewriter() {
-      var keypath = Expr.Parse("a.b.c");
-      keypath.Visit(new PascalCaseRewriter());
-      Assert.Equal("A.B.C", keypath.Format);
-
-      var subquery = Predicate.Parse("(SUBQUERY(SELF.a.collection, $c, (($c.name == 'foo') AND ($c.num < 10))).@count > 0)");
-      subquery.Visit(new PascalCaseRewriter());
-      Assert.Equal("(SUBQUERY(SELF.A.Collection, $c, (($c.Name == 'foo') AND ($c.Num < 10))).@count > 0)", subquery.Format);
     }
 
     [Fact]
