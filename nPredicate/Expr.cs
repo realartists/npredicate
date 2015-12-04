@@ -104,7 +104,7 @@
       return new VariableAssignmentExpr(variable, rhs);
     }
 
-    public Expression<Func<T, V>> LinqExpression<T, V>(LinqDialect dialect = LinqDialect.Objects) {
+    public Expression<Func<T, V>> LinqExpression<T, V>(LinqDialect dialect = 0) {
       var bindings = new Dictionary<string, Expression>();
       ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
       bindings.Add(self.Name, self);
@@ -256,7 +256,7 @@
           propertyExpr = Expression.Property(result, key);
         }
 
-        if (dialect == LinqDialect.Objects) {
+        if ((dialect & LinqDialect.EntityFramework) == 0) {
           var defaultSource = Expression.Default(result.Type);
           var defaultResult = Expression.Default(propertyExpr.Type);
 
@@ -460,7 +460,7 @@
     static Random Rand = new Random();
 
     private Expression DateFunction(string name, Expression arg0, Expression arg1, LinqDialect dialect) {
-      if (dialect == LinqDialect.Objects) {
+      if ((dialect & LinqDialect.EntityFramework) == 0) {
         return Expression.Call(arg0, name, null, Utils.AsDouble(arg1));
       } else {
         var method = typeof(DbFunctions).GetMethod(name, new Type[] { typeof(DateTime?), typeof(int?) });
@@ -475,7 +475,7 @@
         throw new NotImplementedException($"Cannot cast to any type except for NSDate, NSString or NSNumber, but got {Arguments.ElementAt(1).Format}");
       }
 
-      if (dialect == LinqDialect.EntityFramework) {
+      if ((dialect & LinqDialect.EntityFramework) != 0) {
         return CastEntities(arg0, destType);
       } else {
         return CastObjects(arg0, destType);

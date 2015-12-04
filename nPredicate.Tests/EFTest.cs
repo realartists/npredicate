@@ -103,9 +103,13 @@ namespace RealArtists.NPredicate.Tests {
         var content = Expr.MakeKeyPath("Content");
 
         var pred = ComparisonPredicate.EqualTo(content, needle, ComparisonPredicateModifier.Direct, ComparisonPredicateOptions.CaseInsensitive);
-        var matches = ctx.Documents.Where(pred.LinqExpression<TestEFDocument>().Compile());
-
+        var matches = ctx.Documents.Where(pred);
         Assert.Equal(1, matches.Count());
+
+        var pred2 = ComparisonPredicate.EqualTo(content, needle, ComparisonPredicateModifier.Direct);
+        var matches2 = ctx.Documents.Where(pred2);
+        Assert.Equal(1, matches2.Count());
+
       }
 
     }

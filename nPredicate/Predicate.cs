@@ -4,9 +4,12 @@
   using System.Linq;
   using System.Linq.Expressions;
 
+  // Set to 0 to specify normal Linq-to-objects dialect.
+  [Flags]
   public enum LinqDialect {
-    Objects = 0,
-    EntityFramework
+    EntityFramework = 1,
+    CaseInsensitiveCollation = 2,
+    DiacriticInsensitiveCollation = 4
   }
 
   public abstract class Predicate {
@@ -18,7 +21,7 @@
       return new ConstantPredicate(value);
     }
 
-    public Expression<Func<T, bool>> LinqExpression<T>(LinqDialect dialect = LinqDialect.Objects) {
+    public Expression<Func<T, bool>> LinqExpression<T>(LinqDialect dialect = 0) {
       ParameterExpression self = Expression.Parameter(typeof(T), "SELF");
       var bindings = new Dictionary<string, Expression>();
       bindings.Add(self.Name, self);
@@ -59,7 +62,7 @@
 
   public static class PredicateExtensions {
     public static IQueryable<T> Where<T>(this IQueryable<T> e, Predicate p) {
-      var linq = p.LinqExpression<T>(LinqDialect.EntityFramework);
+      var linq = p.LinqExpression<T>(LinqDialect.EntityFramework | LinqDialect.CaseInsensitiveCollation);
       var result = e.Where(linq);
       return result;
     }

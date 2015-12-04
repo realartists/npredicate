@@ -15,19 +15,16 @@
     }
 
     public static Expression CallSafe(LinqDialect dialect, Expression target, string methodName, params Expression[] arguments) {
-      if (dialect == LinqDialect.Objects) {
+      if ((dialect & LinqDialect.EntityFramework) == 0) {
         var defaultTarget = Expression.Default(target.Type);
         var isNull = Expression.ReferenceEqual(target, defaultTarget);
         var argTypes = arguments.Select(a => a.Type).ToArray();
         var called = Expression.Call(target, target.Type.GetMethod(methodName, argTypes), arguments);
         var defaultCalled = Expression.Default(called.Type);
         return Expression.Condition(isNull, defaultCalled, called);
-      } else if (dialect == LinqDialect.EntityFramework) {
+      } else {
         var argTypes = arguments.Select(a => a.Type).ToArray();
         return Expression.Call(target, target.Type.GetMethod(methodName, argTypes), arguments);
-
-      } else {
-        throw new NotImplementedException($"Unknown dialect {dialect}");
       }
     }
 

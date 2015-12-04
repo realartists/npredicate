@@ -276,7 +276,7 @@
     }
 
     private Expression _LinqExpression(Expression left, Expression right, LinqDialect dialect) {
-      if (0 != (Options & ComparisonPredicateOptions.CaseInsensitive)) {
+      if (0 != (Options & ComparisonPredicateOptions.CaseInsensitive) && 0 == (dialect & LinqDialect.CaseInsensitiveCollation)) {
         left = Utils.CallSafe(dialect, left, "ToLower");
         if (PredicateOperatorType != PredicateOperatorType.Matches) {
           right = Utils.CallSafe(dialect, right, "ToLower");
