@@ -1,5 +1,5 @@
 # npredicate
-An NSPredicate to LINQ Expressions translator
+An NSPredicate to LINQ Expressions translator [![Build status](https://ci.appveyor.com/api/projects/status/a9ovkxf4d1pxol4t?svg=true)](https://ci.appveyor.com/project/NicholasSivo/npredicate)
 
 This library allows you to perform queries in .net using the NSPredicate query language from Cocoa. Every aspect of the documented NSPredicate syntax that I am aware of is supported, as well as some un/underdocumented aspects as well.
 
