@@ -167,6 +167,114 @@
       }
     }
 
+    private Tuple<Expression, Expression> MakeComparableScalar(Expression left, Expression right, LinqDialect dialect) {
+      var exprs = new Expression[] { left, right };
+      Array.Sort(exprs, CompareExpressionTypePrecision);
+      bool needsFlip = exprs[0] == right;
+
+      if (exprs[0].Type != exprs[1].Type) {
+        exprs[0] = Cast(exprs[0], exprs[1].Type);
+      }
+      
+      if (needsFlip) {
+        Array.Reverse(exprs);
+      }
+      return new Tuple<Expression, Expression>(exprs[0], exprs[1]);
+    }
+
+    private Expression MakeComparableVector(Expression needle, Expression haystack, LinqDialect dialect) {
+      var haystackElementType = Utils.ElementType(haystack.Type);
+      int order = CompareTypePrecision(haystackElementType, needle.Type);
+      if (order != 0) {
+        return Cast(needle, haystackElementType);
+      } else {
+        return needle;
+      }
+    }
+
+    private static bool IsCastableType(Type t) {
+      return Utils.IsTypeNumeric(t) || t == typeof(string) || t == typeof(Guid);
+    }
+
+    // Order from less precise to more precise.
+    private static int CompareTypePrecision(Type a, Type b) {
+      var ordering = new Type[] {
+        typeof(byte),
+        typeof(sbyte),
+        typeof(ushort),
+        typeof(short),
+        typeof(uint),
+        typeof(int),
+        typeof(ulong),
+        typeof(long),
+        typeof(float),
+        typeof(double),
+        typeof(string),
+        typeof(Guid)
+      };
+
+      int aPos = -1;
+      int bPos = -1;
+      for (int i = 0; i < ordering.Length; i++) {
+        if (a == ordering[i]) {
+          aPos = i;
+        }
+        if (b == ordering[i]) {
+          bPos = i;
+        }
+        if (aPos >= 0 && bPos >= 0) {
+          break;
+        }
+      }
+
+      if (aPos < bPos) {
+        return -1;
+      } else if (aPos == bPos) {
+        return 0;
+      } else {
+        return 1;
+      }
+    }
+
+    private static int CompareExpressionTypePrecision(Expression a, Expression b) {
+      return CompareTypePrecision(a.Type, b.Type);
+    }
+
+    private static Expression Cast(Expression e, Type t) {
+      if (e.Type == typeof(string) && t == typeof(Guid)) {
+        if (e is ConstantExpression) {
+          string guidStr = (string)((ConstantExpression)e).Value;
+          return Expression.Constant(Guid.Parse(guidStr));
+        } else {
+          return e; // likely to fail further down the line :(
+        }
+      } else if (e.Type == typeof(Guid) && t == typeof(string)) {
+        if (e is ConstantExpression) {
+          Guid guid = (Guid)((ConstantExpression)e).Value;
+          return Expression.Constant(guid.ToString());
+        } else {
+          return e; // likely to fail further down the line :(
+        }
+      } else {
+        return Expression.Convert(e, t);
+      }
+    }
+
+    private Tuple<Expression, Expression> MakeComparable(Expression left, Expression right, LinqDialect dialect) {
+      if (left.Type == right.Type) {
+        return new Tuple<Expression, Expression>(left, right);
+      } else if (Utils.TypeIsEnumerable(left.Type) && !Utils.TypeIsEnumerable(right.Type)) {
+        return new Tuple<Expression, Expression>(left, MakeComparableVector(right, left, dialect));
+      } else if (Utils.TypeIsEnumerable(right.Type) && !Utils.TypeIsEnumerable(left.Type)) {
+        return new Tuple<Expression, Expression>(MakeComparableVector(left, right, dialect), right);
+      } else if (IsCastableType(left.Type) && IsCastableType(right.Type)) {
+        return MakeComparableScalar(left, right, dialect);
+      } else {
+        // Hope there is some comparison overload already defined for us
+        return new Tuple<Expression, Expression>(left, right);
+      }
+    }
+
     private Expression _LinqExpression(Expression left, Expression right, LinqDialect dialect) {
       if (0 != (Options & ComparisonPredicateOptions.CaseInsensitive)) {
         left = Utils.CallSafe(dialect, left, "ToLower");
@@ -174,6 +282,10 @@
           right = Utils.CallSafe(dialect, right, "ToLower");
         }
       }
+
+      var tuple = MakeComparable(left, right, dialect);
+      left = tuple.Item1;
+      right = tuple.Item2;
 
       switch (PredicateOperatorType) {
         case PredicateOperatorType.LessThan:

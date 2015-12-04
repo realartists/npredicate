@@ -321,7 +321,6 @@
     public void TestCompareStringAndGuid() {
       var guid = Guid.NewGuid();
       var pred = Predicate.Parse("%@ == %@", guid.ToString(), guid);
-      pred.Visit(new GuidRewriter());
       Assert.True(pred.EvaluateObject<object>(null));
     }
 
@@ -334,6 +333,29 @@
     public void TestUnicodeEscape() {
       Assert.Equal("☂", "\u2602");
       Assert.Equal("☂", Expr.Parse("'\\u2602'").Value<string>());
+    }
+
+    [Fact]
+    public void TestNumericUpcast() {
+      var pred = Predicate.Parse("%d == %ld", 42, 42L);
+      Assert.True(pred.EvaluateObject<object>(null));
+    }
+
+    [Fact]
+    public void TestFloatConversion() {
+      var pred = Predicate.Parse("10 < 11.0");
+      Assert.True(pred.EvaluateObject<object>(null));
+    }
+
+    [Fact]
+    public void TestStringToGuidUpcast() {
+      var guid = Guid.NewGuid();
+      var guidStr = guid.ToString();
+      var pred1 = Predicate.Parse("%@ == %@", guid, guidStr);
+      var pred2 = Predicate.Parse("%@ == %@", guid, guidStr);
+
+      Assert.True(pred1.EvaluateObject<object>(null));
+      Assert.True(pred2.EvaluateObject<object>(null));
     }
   }
 }

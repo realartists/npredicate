@@ -65,6 +65,12 @@
     }
 
     public static bool TypeIsEnumerable(Type type) {
+      // opt out some technically enumerable types that we don't treat as such because
+      // they aren't enumerable in Cocoa
+      if (type == typeof(string)) {
+        return false;
+      }
+
       // http://stackoverflow.com/questions/1121834/finding-out-if-a-type-implements-a-generic-interface
 
       // this conditional is necessary if myType can be an interface,
