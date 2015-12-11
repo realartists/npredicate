@@ -27,6 +27,8 @@ namespace RealArtists.NPredicate.Tests {
     public TestEFUser Author { get; set; }
     public DateTime ModificationDate { get; set; }
     public DateTime CreationDate { get; set; }
+
+    public DateTime? MaybeDate { get; set; }
   }
 
   public class TestEFContext : DbContext {
@@ -58,6 +60,7 @@ namespace RealArtists.NPredicate.Tests {
         doc1.Watchers.Add(nick);
         doc1.CreationDate = DateTime.UtcNow.AddDays(-3);
         doc1.ModificationDate = DateTime.UtcNow.AddDays(-2);
+        doc1.MaybeDate = DateTime.UtcNow.AddDays(-1);
 
         ctx.Documents.Add(new TestEFDocument() { Content = "Goodbye Cruel World" });
 
@@ -212,6 +215,22 @@ namespace RealArtists.NPredicate.Tests {
         var yep = Predicate.Parse("CreationDate < FUNCTION(now(), 'dateByAddingDays:', -2)");
 
         Assert.False(ctx.Documents.Where(nope).Any());
+        Assert.True(ctx.Documents.Where(yep).Any());
+      }
+    }
+
+    [Fact]
+    public void TestNullableDateComparison() {
+      using (var ctx = new TestEFContext()) {
+        var yep = Predicate.Parse("MaybeDate < NOW()");
+        Assert.True(ctx.Documents.Where(yep).Any());
+      }
+    }
+
+    [Fact]
+    public void TestNullableDateAsNull() {
+      using (var ctx = new TestEFContext()) {
+        var yep = Predicate.Parse("MaybeDate == nil");
         Assert.True(ctx.Documents.Where(yep).Any());
       }
     }

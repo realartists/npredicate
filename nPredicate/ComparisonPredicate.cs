@@ -1,6 +1,7 @@
 ﻿namespace RealArtists.NPredicate {
   using System;
   using System.Collections.Generic;
+  using System.Diagnostics;
   using System.Linq.Expressions;
   using System.Reflection;
 
@@ -167,8 +168,52 @@
       }
     }
 
-    private Tuple<Expression, Expression> MakeComparableScalar(Expression left, Expression right, LinqDialect dialect) {
+    private static int CompareNullability(Expression a, Expression b) {
+      int aScore = 0;
+      int bScore = 0;
+
+      aScore += a.Type.IsValueType ? 0 : 2;
+      aScore += Utils.IsNullableValueType(a.Type) ? 1 : 0;
+      
+      bScore += b.Type.IsValueType ? 0 : 2;
+      bScore += Utils.IsNullableValueType(b.Type) ? 1 : 0;
+      
+      if (aScore < bScore) {
+        return -1;
+      } else if (bScore < aScore) {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+
+    private Tuple<Expression, Expression> PromoteNullableValueTypes(Expression left, Expression right) {
+      if (!Utils.IsNullableValueType(left.Type) && !Utils.IsNullableValueType(right.Type)) {
+        return new Tuple<Expression, Expression>(left, right);
+      }
+
       var exprs = new Expression[] { left, right };
+      Array.Sort(exprs, CompareNullability);
+      bool needsFlip = exprs[0] == right;
+
+      if (Utils.IsNullConstant(exprs[1])) {
+        exprs[1] = Utils.NullForValueType(Utils.ValueTypeInNullable(exprs[0].Type));
+      } else {
+        Debug.Assert(Utils.IsNullableValueType(exprs[1].Type));
+        exprs[0] = Utils.AsNullableValueType(exprs[0]);
+      }
+      
+      if (needsFlip) {
+        Array.Reverse(exprs);
+      }
+
+      return new Tuple<Expression, Expression>(exprs[0], exprs[1]);
+    }
+
+    private Tuple<Expression, Expression> MakeComparableScalar(Expression left, Expression right, LinqDialect dialect) {
+      var lr = PromoteNullableValueTypes(left, right);
+
+      var exprs = new Expression[] { lr.Item1, lr.Item2 };
       Array.Sort(exprs, CompareExpressionTypePrecision);
       bool needsFlip = exprs[0] == right;
 
@@ -193,7 +238,7 @@
     }
 
     private static bool IsCastableType(Type t) {
-      return Utils.IsTypeNumeric(t) || t == typeof(string) || t == typeof(Guid);
+      return Utils.IsTypeNumeric(t) || Utils.IsNullableValueType(t) || t.IsValueType || t == typeof(string);
     }
 
     // Order from less precise to more precise.
@@ -212,6 +257,13 @@
         typeof(string),
         typeof(Guid)
       };
+
+      if (Utils.IsNullableValueType(a)) {
+        a = Utils.ValueTypeInNullable(a);
+      }
+      if (Utils.IsNullableValueType(b)) {
+        b = Utils.ValueTypeInNullable(b);
+      }
 
       int aPos = -1;
       int bPos = -1;

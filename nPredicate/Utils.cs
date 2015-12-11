@@ -167,6 +167,42 @@
       }
     }
 
+    public static bool IsNullableValueType(Type t) {
+      return t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>);
+    }
+
+    public static Expression AsNullableValueType(Expression e) {
+      if (IsNullableValueType(e.Type)) {
+        return e;
+      }
+      if (!e.Type.IsValueType) {
+        throw new ArgumentException("t must be a value type");
+      }
+      return Utils.AsNullable(e);
+    }
+
+    public static Type ValueTypeInNullable(Type nullable) {
+      if (!IsNullableValueType(nullable)) {
+        return nullable;
+      }
+      return nullable.GetGenericArguments()[0];
+    }
+
+    public static bool IsNullConstant(Expression e) {
+      if (e is ConstantExpression) {
+        return ((ConstantExpression)e).Value == null;
+      }
+      return false;
+    }
+
+    public static Expression NullForValueType(Type valueType) {
+      if (!valueType.IsValueType) {
+        throw new ArgumentException("valueType must be a value type");
+      }
+      var type = typeof(Nullable<>).MakeGenericType(valueType);
+      return Expression.Constant(null, type);
+    }
+
     public static Expression AsNullable(Expression a) {
       if (a.Type.IsByRef) {
         return a;

@@ -219,6 +219,14 @@
       var expr = Expr.MakeConstant("Hello World");
       Assert.Equal("'Hello World'", expr.Format);
     }
+
+    [Fact]
+    public void TestNullableMismatchComparison() {
+      Int16? a = 4;
+      Int32 b = 5;
+      var pred = Predicate.Parse("%@ < %@", a, b);
+      Assert.True(pred.EvaluateObject<object>(null));
+    }
   }
 }
 
